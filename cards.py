@@ -48,41 +48,51 @@ class OutpostCard(Card):
 class Action:
     def exec(self, c: Card, game, p1, p2):
         raise NotImplementedError()
+    def __repr__(self):
+        return str(self)
 
-
-class ActionBuyCard(Action):
+class ActionFreeShipCard(Action):
     def __init__(self, on_top=True):
         self.on_top = on_top
 
     def exec(self, c: Card, game, p1, p2):
-        pile, idx = p1.choose_pile('buy', game.trade_pile)
+        pile, idx = p1.choose_from_piles('buy', game.trade_pile, ship_only=True)
         card = pile[idx]
         if self.on_top:
             p1.on_top += 1
         game.buy(p1, p2, card, free=True)
+    def __str__(self):
+        if self.on_top:
+            return 'get free ship and put on top of draw pile'
+        else:
+            return 'get free ship'
 
 class ActionScrap(Action):
     def exec(self, c: Card, game, p1, p2):
-        pile, idx = p1.choose_pile('scrap', p1.hand, p1.discard_pile)
+        pile, idx = p1.choose_from_piles('scrap', p1.hand, p1.discard_pile)
         if pile is not None:
             game.scrap_pile.append(pile[idx])
             del pile[idx]
+    def __str__(self):
+        return 'scrap from hand or discard pile'
 
 class ActionTradeRowScrap(Action):
     def exec(self, c: Card, game, p1, p2):
-        pile, idx = p1.choose_pile('scrap', game.trade_pile)
+        pile, idx = p1.choose_from_piles('scrap', game.trade_pile)
         if idx is not None:
             game.scrap_pile.append(pile[idx])
             game.trade_pile[idx] = self.draw_pile.pop()
-
+    def __str__(self):
+        return 'scrap from trade row'
 
 class SimpleAction(Action):
     def __init__(self, n):
         self.n = n
-
     def exec(self, c: Card, game, p1, p2):
         v = getattr(p1, self.attr)
         setattr(p1, self.attr, v + self.n)
+    def __str__(self):
+        return f'{self.attr}:{self.n}'
 
 class ActionDamage(SimpleAction):
     attr = 'damage'
@@ -97,14 +107,20 @@ class ActionAddDiscard(Action):
     def exec(self, c: Card, game, p1, p2):
         v = getattr(p1, self.attr)
         setattr(p2, self.attr, v + self.n)
+    def __str__(self):
+        return 'Target opponent discards a card'
 
-class AllyAction:
+class AllyAction(Action):
     def __init__(self, action):
         self.action = action
+    def __str__(self):
+        return 'Ally Action: ' + str(self.action)
 
-class OptionalAction:
+class OptionalAction(Action):
     def __init__(self, action):
         self.action = action
+    def __str__(self):
+        return 'Optional: ' + str(self.action)
 
 class ChooseAction(Action):
     def __init__(self, *actions):
@@ -112,6 +128,8 @@ class ChooseAction(Action):
     def exec(self, c: Card, game, p1, p2):
         a = p1.choose_action(self.actions)
         a.exec(c, game, p1, p2)
+    def __str__(self):
+        return 'choose one of: ' + str(self.actions)
 
 class ActionSelfScrap(OptionalAction):
     def __init__(self, *actions):
@@ -121,39 +139,50 @@ class ActionSelfScrap(OptionalAction):
         p1.in_play.remove(c)
         for a in self.actions:
             a.exec(c, game, p1, p2)
+    def __str__(self):
+        return 'scrap self, then:' + str(self.actions)
 
 class ActionDrawCard(Action):
     def __init__(self, n=1):
         self.n = n
     def exec(self, c: Card, game, p1, p2):
         p1.draw(self.n)
+    def __str__(self):
+        return 'Draw card'
 
 class ActionDrawCardXAllies(Action):
     def exec(self, c: Card, game, p1, p2):
         n = len(1 for ac in p1.in_play if c.is_ally(ac))
         p1.draw(self.n)
-
+    def __str__(self):
+        return 'Draw a card for each ally played'
 
 class ActionDestroyBase(Action):
     def exec(self, c: Card, game, p1, p2):
-        pile , idx = p1.choose_pile('destroy', p2.outposts or p2.bases)
+        pile , idx = p1.choose_from_piles('destroy', p2.outposts or p2.bases)
         if pile:
             c = pile.pop(idx)
             p2.discard.append(c)
+    def __str__(self):
+        return 'Destroy target base'
 
 class ActionScarpDrawCard(Action):
     def __init__(self, n):
         self.n = n
     def exec(self, c: Card, game, p1, p2):
-        pile, *idx = p1.choose_pile('scrap', p1.hand, p1.discard_pile, max_n=self.n)
+        pile, *idx = p1.choose_from_piles('scrap', p1.hand, p1.discard_pile, max_n=self.n)
         if pile:
             for i in idx:
                 del pile[i]
             p1.draw(len(idx))
+    def __str__(self):
+        return f'scrap up to {self.n} cards from discard or hand and draw as many cards'
 
-class ActionOnTop:
+class ActionOnTop(Action):
     def exec(self, c: Card, game, p1, p2):
         p1.on_top += 1
+    def __str__(self):
+        return 'put next ship on top of draw pile'
 
 class ActionDrawIfBases(Action):
     def __init__(self, bases, draw):
@@ -162,11 +191,29 @@ class ActionDrawIfBases(Action):
     def exec(self, c: Card, game, p1, p2):
         if len(p1.outposts) + len(p1.bases) >= self.bases:
             p1.draw(self.draw)
+    def __str__(self):
+        return f'draw {self.draw} cards when you have {self.bases} bases'
 
 class ActionDrawThenScrap(Action):
     def exec(self, c: Card, game, p1, p2):
         p1.draw(1)
-        p1.choose_pile('scrap', p1.hand, min_n=1, max_n=1)
+        p1.choose_from_piles('scrap', p1.hand, min_n=1, max_n=1)
+    def __str__(self):
+        return 'Draw card then scrap from hand'
+
+class ActionDiscardAndDraw(Action):
+    def __init__(self, n):
+        self.n = n
+    def exec(self, c: Card, game, p1, p2):
+        pile, *idx = p1.choose_from_piles('discard', p1.hand, max_n=self.n)
+        if pile:
+            for i in reversed(sorted(idx)):
+                c = p1.hand.pop(i)
+                p1.discard_pile.append(c)
+            p1.draw(len(idx))
+    def __str__(self):
+        return f'discard up to {self.n} cards from hand and draw as many cards'
+
 
 VIPER = Card('Viper', 0, Faction.UNALIGNED, [ActionDamage(1)])
 SCOUT = Card('Scout', 0, Faction.UNALIGNED, [ActionTrade(1)])
@@ -183,7 +230,7 @@ BattleMech = Card('BattleMech', 5, Faction.MACHINE_CULT,
                   [ActionDamage(4),
                    ActionScrap(),
                    AllyAction(ActionDrawCard(1))])
-BATTLEPOD = Card('BattlePod', 2, Faction.BLOB,
+BattlePod = Card('BattlePod', 2, Faction.BLOB,
                  [ActionDamage(4), ActionTradeRowScrap(),
                  AllyAction(ActionDamage(2))])
 BattleStation = OutpostCard('BattleStation', 3, Faction.MACHINE_CULT,
@@ -195,12 +242,12 @@ Battlecruiser = Card('Battlecruiser', 6, Faction.STAR_ALLIANCE,
                       OptionalAction(ActionSelfScrap(ActionDrawCard(), ActionDestroyBase()))])
 BlobCarrier = Card('BlobCarrier', 6, Faction.BLOB,
                    [ActionDamage(7),
-                    AllyAction(OptionalAction(ActionBuyCard()))])
+                    AllyAction(OptionalAction(ActionFreeShipCard()))])
 BlobDestroyer = Card('BlobDestroyer', 4, Faction.BLOB,
                      [ActionDamage(6),
                       AllyAction(OptionalAction(ActionDestroyBase())),
                       AllyAction(OptionalAction(ActionTradeRowScrap()))])
-BLOBFIGHTER = Card('BlobFighter', 1, Faction.BLOB,
+BlobFighter = Card('BlobFighter', 1, Faction.BLOB,
                    [ActionDamage(3),
                     AllyAction(ActionDrawCard())])
 BlobWheel = BaseCard('BlobWheel', 3, Faction.BLOB,
@@ -261,12 +308,72 @@ Junkyard = OutpostCard('Junkyard', 6, Faction.MACHINE_CULT,
 MachineBase = OutpostCard('MachineBase', 7, Faction.MACHINE_CULT,
                           [OptionalAction(ActionDrawThenScrap())],
                           defence=6)
+# ally to all as action...
+MechWorld = OutpostCard('MechWorld', 5, Faction.ALL,[],defence=6)
+MissileBot = Card('MissileBot', 2, Faction.MACHINE_CULT,
+                  [ActionDamage(2),OptionalAction(ActionScrap()),
+                   AllyAction(ActionDamage(2))])
+MissileMech = Card('MissileMech', 6, Faction.MACHINE_CULT,
+                   [ActionDamage(6), OptionalAction(ActionDestroyBase()),
+                    AllyAction(ActionDrawCard())])
+Mothership = Card('Mothership', 7, Faction.BLOB,
+                  [ActionDamage(6), ActionDrawCard(),
+                   AllyAction(ActionDrawCard())])
+PatrolMech = Card('PatrolMech', 4, Faction.MACHINE_CULT,
+                  [ChooseAction(ActionTrade(3), ActionDamage(5)),
+                   AllyAction(OptionalAction(ActionScrap()))])
+PortOfCall = OutpostCard('PortOfCall', 6, Faction.TRADE_FEDERATION,
+                         [ActionTrade(3),
+                          ActionSelfScrap(ActionDrawCard(), OptionalAction(ActionDestroyBase()))],
+                         defence=6)
+Ram = Card('Ram', 3, Faction.BLOB,
+           [ActionDamage(5),
+            AllyAction(ActionDamage(2)),
+            ActionSelfScrap(ActionTrade(3))])
+RecyclingStation = OutpostCard('RecyclingStation', 4, Faction.STAR_ALLIANCE,
+                               [ChooseAction(ActionTrade(1), ActionDiscardAndDraw(2))],
+                               defence=4)
+RoyalRedoubt = OutpostCard('RoyalRedoubt', 6, Faction.STAR_ALLIANCE,
+                           [ActionDamage(3),
+                            AllyAction(ActionAddDiscard())])
+SpaceStation = OutpostCard('SpaceStation', 4, Faction.STAR_ALLIANCE,
+                           [ActionDamage(2),
+                            AllyAction(ActionDamage(2)),
+                            ActionSelfScrap(ActionTrade(4))],
+                           defence=4)
+# TODO: copy ship ability
+StealthNeedle = Card('StealthNeedle', 4, Faction.MACHINE_CULT,
+                     [])
+SupplyBot = Card('SupplyBot', 3, Faction.MACHINE_CULT,
+                 [ActionTrade(2), OptionalAction(ActionScrap()),
+                  AllyAction(ActionDamage(2))])
+SurveyShip = Card('SurveyShip', 3, Faction.STAR_ALLIANCE,
+                  [ActionTrade(1), ActionDrawCard(1),
+                   ActionSelfScrap(ActionAddDiscard())])
+TheHive = BaseCard('TheHive', 5, Faction.BLOB,
+                   [ActionDamage(3),
+                    AllyAction(ActionDrawCard(1))],
+                   defence=5)
+TradeBot = Card('TradeBot', 1, Faction.MACHINE_CULT,
+                [ActionTrade(1), OptionalAction(ActionScrap()),
+                 AllyAction(ActionDamage(2))])
+TradeEscort = Card('TradeEscort', 5, Faction.TRADE_FEDERATION,
+                   [ActionHealth(4), ActionDamage(4),
+                    AllyAction(ActionDrawCard())])
+TradePod = Card('TradePod', 2, Faction.BLOB,
+                [ActionTrade(3),
+                 AllyAction(ActionDamage(2))])
+TradingPost = OutpostCard('TradingPost', 3, Faction.TRADE_FEDERATION,
+                          [ChooseAction(ActionHealth(1), ActionTrade(1)),
+                           ActionSelfScrap(ActionDamage(3))],
+                          defence=4)
+WarWorld = OutpostCard('WarWorld', 5, Faction.STAR_ALLIANCE,
+                       [ActionDamage(3),
+                        AllyAction(ActionDamage(4))])
 
 DEFAULT_PLAYER_DRAW = [VIPER]*3 + [SCOUT]*7
 #DEFAULT_PLAYER_DRAW = [copy.copy(c) for c in DEFAULT_PLAYER_DRAW]
-DEFAULT_TRADE_PILE = [BLOBFIGHTER]*5 + [BATTLEPOD]*3
-#DEFAULT_TRADE_PILE = [copy.copy(c) for c in DEFAULT_TRADE_PILE]
-
+DEFAULT_TRADE_PILE = []
 '''
       # Machine Cult
       card TradeBot, 3
