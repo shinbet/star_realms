@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from typing import List
 from dataclasses import dataclass, field
 from enum import Enum, auto, Flag
@@ -43,177 +42,7 @@ class BaseCard(Card):
 class OutpostCard(Card):
     defence: int
 
-
-
-class Action:
-    def exec(self, c: Card, game, p1, p2):
-        raise NotImplementedError()
-    def __repr__(self):
-        return str(self)
-
-class ActionFreeShipCard(Action):
-    def __init__(self, on_top=True):
-        self.on_top = on_top
-
-    def exec(self, c: Card, game, p1, p2):
-        pile, idx = p1.choose_from_piles('buy', game.trade_pile, ship_only=True)
-        card = pile[idx]
-        if self.on_top:
-            p1.on_top += 1
-        game.buy(p1, p2, card, free=True)
-    def __str__(self):
-        if self.on_top:
-            return 'get free ship and put on top of draw pile'
-        else:
-            return 'get free ship'
-
-class ActionScrap(Action):
-    def exec(self, c: Card, game, p1, p2):
-        pile, idx = p1.choose_from_piles('scrap', p1.hand, p1.discard_pile)
-        if pile is not None:
-            game.scrap_pile.append(pile[idx])
-            del pile[idx]
-    def __str__(self):
-        return 'scrap from hand or discard pile'
-
-class ActionTradeRowScrap(Action):
-    def exec(self, c: Card, game, p1, p2):
-        pile, idx = p1.choose_from_piles('scrap', game.trade_pile)
-        if idx is not None:
-            game.scrap_pile.append(pile[idx])
-            game.trade_pile[idx] = self.draw_pile.pop()
-    def __str__(self):
-        return 'scrap from trade row'
-
-class SimpleAction(Action):
-    def __init__(self, n):
-        self.n = n
-    def exec(self, c: Card, game, p1, p2):
-        v = getattr(p1, self.attr)
-        setattr(p1, self.attr, v + self.n)
-    def __str__(self):
-        return f'{self.attr}:{self.n}'
-
-class ActionDamage(SimpleAction):
-    attr = 'damage'
-class ActionTrade(SimpleAction):
-    attr = 'trade'
-class ActionHealth(SimpleAction):
-    attr = 'health'
-
-class ActionAddDiscard(Action):
-    def __init__(self, n=1):
-        self.n = n
-    def exec(self, c: Card, game, p1, p2):
-        v = getattr(p1, self.attr)
-        setattr(p2, self.attr, v + self.n)
-    def __str__(self):
-        return 'Target opponent discards a card'
-
-class AllyAction(Action):
-    def __init__(self, action):
-        self.action = action
-    def __str__(self):
-        return 'Ally Action: ' + str(self.action)
-
-class OptionalAction(Action):
-    def __init__(self, action):
-        self.action = action
-    def __str__(self):
-        return 'Optional: ' + str(self.action)
-
-class ChooseAction(Action):
-    def __init__(self, *actions):
-        self.actions = actions
-    def exec(self, c: Card, game, p1, p2):
-        a = p1.choose_action(self.actions)
-        a.exec(c, game, p1, p2)
-    def __str__(self):
-        return 'choose one of: ' + str(self.actions)
-
-class ActionSelfScrap(OptionalAction):
-    def __init__(self, *actions):
-        self.actions = actions
-        self.action = self
-    def exec(self, c: Card, game, p1, p2):
-        p1.in_play.remove(c)
-        for a in self.actions:
-            a.exec(c, game, p1, p2)
-    def __str__(self):
-        return 'scrap self, then:' + str(self.actions)
-
-class ActionDrawCard(Action):
-    def __init__(self, n=1):
-        self.n = n
-    def exec(self, c: Card, game, p1, p2):
-        p1.draw(self.n)
-    def __str__(self):
-        return 'Draw card'
-
-class ActionDrawCardXAllies(Action):
-    def exec(self, c: Card, game, p1, p2):
-        n = len(1 for ac in p1.in_play if c.is_ally(ac))
-        p1.draw(self.n)
-    def __str__(self):
-        return 'Draw a card for each ally played'
-
-class ActionDestroyBase(Action):
-    def exec(self, c: Card, game, p1, p2):
-        pile , idx = p1.choose_from_piles('destroy', p2.outposts or p2.bases)
-        if pile:
-            c = pile.pop(idx)
-            p2.discard.append(c)
-    def __str__(self):
-        return 'Destroy target base'
-
-class ActionScarpDrawCard(Action):
-    def __init__(self, n):
-        self.n = n
-    def exec(self, c: Card, game, p1, p2):
-        pile, *idx = p1.choose_from_piles('scrap', p1.hand, p1.discard_pile, max_n=self.n)
-        if pile:
-            for i in idx:
-                del pile[i]
-            p1.draw(len(idx))
-    def __str__(self):
-        return f'scrap up to {self.n} cards from discard or hand and draw as many cards'
-
-class ActionOnTop(Action):
-    def exec(self, c: Card, game, p1, p2):
-        p1.on_top += 1
-    def __str__(self):
-        return 'put next ship on top of draw pile'
-
-class ActionDrawIfBases(Action):
-    def __init__(self, bases, draw):
-        self.bases = bases
-        self.draw = draw
-    def exec(self, c: Card, game, p1, p2):
-        if len(p1.outposts) + len(p1.bases) >= self.bases:
-            p1.draw(self.draw)
-    def __str__(self):
-        return f'draw {self.draw} cards when you have {self.bases} bases'
-
-class ActionDrawThenScrap(Action):
-    def exec(self, c: Card, game, p1, p2):
-        p1.draw(1)
-        p1.choose_from_piles('scrap', p1.hand, min_n=1, max_n=1)
-    def __str__(self):
-        return 'Draw card then scrap from hand'
-
-class ActionDiscardAndDraw(Action):
-    def __init__(self, n):
-        self.n = n
-    def exec(self, c: Card, game, p1, p2):
-        pile, *idx = p1.choose_from_piles('discard', p1.hand, max_n=self.n)
-        if pile:
-            for i in reversed(sorted(idx)):
-                c = p1.hand.pop(i)
-                p1.discard_pile.append(c)
-            p1.draw(len(idx))
-    def __str__(self):
-        return f'discard up to {self.n} cards from hand and draw as many cards'
-
+from actions import *
 
 VIPER = Card('Viper', 0, Faction.UNALIGNED, [ActionDamage(1)])
 SCOUT = Card('Scout', 0, Faction.UNALIGNED, [ActionTrade(1)])
@@ -331,11 +160,12 @@ Ram = Card('Ram', 3, Faction.BLOB,
             AllyAction(ActionDamage(2)),
             ActionSelfScrap(ActionTrade(3))])
 RecyclingStation = OutpostCard('RecyclingStation', 4, Faction.STAR_ALLIANCE,
-                               [ChooseAction(ActionTrade(1), ActionDiscardAndDraw(2))],
+                               [OptionalAction(ChooseAction(ActionTrade(1), ActionDiscardAndDraw(2)))],
                                defence=4)
 RoyalRedoubt = OutpostCard('RoyalRedoubt', 6, Faction.STAR_ALLIANCE,
                            [ActionDamage(3),
-                            AllyAction(ActionAddDiscard())])
+                            AllyAction(ActionAddDiscard())],
+                           defence=6)
 SpaceStation = OutpostCard('SpaceStation', 4, Faction.STAR_ALLIANCE,
                            [ActionDamage(2),
                             AllyAction(ActionDamage(2)),
@@ -364,68 +194,72 @@ TradePod = Card('TradePod', 2, Faction.BLOB,
                 [ActionTrade(3),
                  AllyAction(ActionDamage(2))])
 TradingPost = OutpostCard('TradingPost', 3, Faction.TRADE_FEDERATION,
-                          [ChooseAction(ActionHealth(1), ActionTrade(1)),
+                          [OptionalAction(ChooseAction(ActionHealth(1), ActionTrade(1))),
                            ActionSelfScrap(ActionDamage(3))],
                           defence=4)
 WarWorld = OutpostCard('WarWorld', 5, Faction.STAR_ALLIANCE,
                        [ActionDamage(3),
-                        AllyAction(ActionDamage(4))])
+                        AllyAction(ActionDamage(4))],
+                       defence=4)
 
 DEFAULT_PLAYER_DRAW = [VIPER]*3 + [SCOUT]*7
-#DEFAULT_PLAYER_DRAW = [copy.copy(c) for c in DEFAULT_PLAYER_DRAW]
+TRADE_ROW_CARDS = [
+       # Machine Cult
+       TradeBot,3,
+       MissileBot, 3,
+       SupplyBot, 3,
+       PatrolMech, 2,
+       StealthNeedle, 1,
+       BattleMech, 1,
+       MissileMech, 1,
+       BattleStation, 2,
+       MechWorld, 1,
+       BrainWorld, 1,
+       MachineBase, 1,
+       Junkyard, 1,
+
+       # Star Empire
+       ImperialFighter, 3,
+       ImperialFrigate, 3,
+       SurveyShip, 3,
+       Corvette, 2,
+       Battlecruiser, 1,
+       Dreadnaught, 1,
+       SpaceStation, 2,
+       RecyclingStation, 2,
+       WarWorld, 1,
+       RoyalRedoubt, 1,
+       FleetHQ, 1,
+
+       # Trade Federation
+       FederationShuttle, 3,
+       Cutter, 3,
+       EmbassyYacht, 2,
+       Freighter, 2,
+       CommandShip, 1,
+       TradeEscort, 1,
+       Flagship, 1,
+       TradingPost, 2,
+       BarterWorld, 2,
+       DefenseCenter, 1,
+       CentralOffice, 1,
+       PortOfCall, 1,
+
+       # Blob
+       BlobFighter, 3,
+       TradePod, 3,
+       BattlePod, 2,
+       Ram, 2,
+       BlobDestroyer, 2,
+       BattleBlob, 1,
+       BlobCarrier, 1,
+       Mothership, 1,
+       BlobWheel, 3,
+       TheHive, 1,
+       BlobWorld, 1,
+]
+
 DEFAULT_TRADE_PILE = []
-'''
-      # Machine Cult
-      card TradeBot, 3
-      card MissileBot, 3
-      card SupplyBot, 3
-      card PatrolMech, 2
-      card StealthNeedle, 1
-      card BattleMech, 1
-      card MissileMech, 1
-      card BattleStation, 2
-      card MechWorld, 1
-      card BrainWorld, 1
-      card MachineBase, 1
-      card Junkyard, 1
+for card, n in zip(TRADE_ROW_CARDS[::2], TRADE_ROW_CARDS[1::2]):
+    DEFAULT_TRADE_PILE.extend([card] * n)
 
-      # Star Empire
-      card ImperialFighter, 3
-      card ImperialFrigate, 3
-      card SurveyShip, 3
-      card Corvette, 2
-      card Battlecruiser, 1
-      card Dreadnaught, 1
-      card SpaceStation, 2
-      card RecyclingStation, 2
-      card WarWorld, 1
-      card RoyalRedoubt, 1
-      card FleetHQ, 1
-
-      # Trade Federation
-      card FederationShuttle, 3
-      card Cutter, 3
-      card EmbassyYacht, 2
-      card Freighter, 2
-      card CommandShip, 1
-      card TradeEscort, 1
-      card Flagship, 1
-      card TradingPost, 2
-      card BarterWorld, 2
-      card DefenseCenter, 1
-      card CentralOffice, 1
-      card PortOfCall, 1
-
-      # Blob
-      card BlobFighter, 3
-      card TradePod, 3
-      card BattlePod, 2
-      card Ram, 2
-      card BlobDestroyer, 2
-      card BattleBlob, 1
-      card BlobCarrier, 1
-      card Mothership, 1
-      card BlobWheel, 3
-      card TheHive, 1
-      card BlobWorld, 1
-'''

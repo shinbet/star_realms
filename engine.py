@@ -1,179 +1,91 @@
 from __future__ import annotations
 
-import copy
 import random
 
-from dataclasses import dataclass, field
 from itertools import chain
-from typing import List, Tuple
+from typing import List
 
-from cards import DEFAULT_PLAYER_DRAW, Card, DEFAULT_TRADE_PILE, AllyAction, \
-    Faction, OptionalAction, OutpostCard, BaseCard, EXPLORER, Action
+from cards import DEFAULT_TRADE_PILE, AllyAction, \
+    Faction, OptionalAction, OutpostCard, BaseCard, EXPLORER
+from pile import Pile
+from players.player import Player
+from user_actions import *
+import logging
+logging.basicConfig(level=logging.INFO)
 
+log = logging.getLogger()
 
 ### https://github.com/tonywok/realms/tree/master/lib
 
-def print_pile(pile):
-    for n, c in enumerate(pile, 1):
-        print(f'{n} {c.name}')
 
-class UserActionPlayCard:
-    def __init__(self, c: Card):
-        self.card = c
-    def __str__(self):
-        return 'play ' + self.card.name
-
-class UserActionBuyCard:
-    def __init__(self, c: Card):
-        self.card = c
-    def __str__(self):
-        return f'buy {self.card.name}: ${self.card.cost} {self.card}'
-
-class UserActionAttackFace:
-    def __str__(self):
-        return 'attack user'
-
-class UserActionAttackBase:
-    def __init__(self, base):
-        self.base = base
-
-class UserActionAttackOutpost:
-    def __init__(self, outpost):
-        self.outpost = outpost
-
-class UserActionCardAction:
-    def __init__(self, c, a):
-        self.card = c
-        self.action = a
-
-class UserActionPlayAllCards:
-    def __init__(self, actions):
-        self.actions = actions
-
-class UserActionDone:
-    pass
-
-USER_ACTION_DONE = UserActionDone()
-
-class Player:
-    def __init__(self, name, health=50, draw_pile=None, discrad_pile=None, bases=None, hand=None, outposts=None):
-        if not draw_pile and not discrad_pile:
-            discrad_pile = DEFAULT_PLAYER_DRAW.copy()
-            random.shuffle(discrad_pile)
-
-
-        self.draw_pile : List[Card] = draw_pile or []
-        self.discard_pile : List[Card] = discrad_pile or []
-        self.health = health
-        self.name = name
-        self.bases : List[BaseCard] = bases or []
-        self.outposts : List[OutpostCard] = outposts or []
-
-        # turn data
-        self.hand : List[Card] = hand or []
-        self.in_play : List[Card] = []
-        self.trade = 0
-        self.discard = 0
-        self.on_top = 0
-        self.damage = 0
-        self.remaining_actions : List[Tuple[Card, Action]] = []
-
-    def end_turn(self):
-        # end turn
-        self.discard_pile.extend(self.hand)
-        self.hand = []
-        self.discard_pile.extend(self.in_play)
-        self.in_play = []
-        self.trade = 0
-        self.discard = 0
-        self.on_top = 0
-        self.damage = 0
-        self.remaining_actions = []
-
-    def draw(self, n):
-        for _ in range(n):
-            if not self.draw_pile:
-                # shuffle discard into draw
-                self.draw_pile, self.discard_pile = self.discard_pile, []
-                random.shuffle(self.draw_pile)
-            if not self.draw_pile:
-                return # insufficient cards
-            self.hand.append(self.draw_pile.pop())
-
-    def get_actions(self, game: Game, p2: Player):
-        actions = []
-        for c in self.hand:
-            actions.append(UserActionPlayCard(c))
-        for c in game.trade_pile:
-            if c.cost <= self.trade:
-                actions.append(UserActionBuyCard(c))
-        if self.trade > 1:
-            actions.append(UserActionBuyCard(copy.copy(EXPLORER)))
-        for c, a in self.remaining_actions:
-            if isinstance(a, OptionalAction):
-                actions.append(UserActionCardAction(c, a.action))
-        if self.damage:
-            if p2.outposts:
-                for o in p2.outposts:
-                    if o.defence <= self.damage:
-                        actions.append(UserActionAttackOutpost(o))
-            else:
-                for b in p2.bases:
-                    if b.defence <= self.damage:
-                        actions.append(UserActionAttackBase(b))
-                actions.append(UserActionAttackFace())
-        actions.append(USER_ACTION_DONE)
-        return actions
-
-class UndoMove(Exception):
-    pass
+class GameOver(Exception):
+    def __init__(self, p: Player):
+        self.winner = p
 
 
 class Game:
-    def __init__(self, players: List[Player], turn = 0, trade_pile=None, draw_pile=None, seed=None):
-        self.turn = 0
+    def __init__(self, players: List[Player], turn = 0, trade_pile=None, draw_pile=None, seed=None, verbose=True):
+        self.turn = turn
         self.players : List[Player] = players
         self.discard = 0
-        self.trade_pile : List[Card] = trade_pile
-        self.draw_pile : List[Card] = draw_pile
-        self.scrap_pile : List[Card] = []
+        if draw_pile is None:
+            draw_pile = DEFAULT_TRADE_PILE.copy()
+            random.shuffle(draw_pile)
+        self.trade_pile : Pile[Card] = Pile('Trade', trade_pile or [])
+        self.draw_pile : Pile[Card] = Pile('Trade Draw pile', draw_pile)
+        self.scrap_pile : Pile[Card] = Pile('scrap', [])
 
         if seed:
             random.seed(seed)
+        self.verbose = verbose
 
     def run(self):
         done = False
+        p1 = self.players[self.turn % 2]
+        p2 = self.players[self.turn%2 + 1]
         if not self.trade_pile:
             self.trade_pile = [self.draw_pile.pop() for _ in range(5)]
-        p = self.players[self.turn % 2]
-        p_other = self.players[self.turn%2 + 1]
 
-        while not done:
-            p.draw(5 if self.turn > 0 else 3)
-            if p.discard:
-                p.choose_discard(self.discard)
-                self.discard = 0
+        try:
+            while True:
+                self.do_turn(p1, p2)
+                self.turn += 1
+                p1, p2 = p2, p1
+        except GameOver as e:
+            return e.winner
 
-            for c in p.outposts:
-                self.play(p1, p2, c)
-            for c in p.bases:
-                self.play(p1, p2, c)
+    def do_turn(self, p1, p2):
+        p1.draw(5 if self.turn > 0 else 3)
+        if p1.discard:
+            p1.choose_discard(self.discard)
+            self.discard = 0
 
-            while 1:
-                a = p.choose_action(self, p_other)
-                if a == USER_ACTION_DONE:
-                    break
-                elif isinstance(a, UserActionPlayAllCards):
-                    for a_ in a.actions:
-                        self.do_action(p, p_other, a_)
-                else:
-                    self.do_action(p, p_other, a)
+        for c in p1.outposts:
+            self.play(p1, p2, c)
+        for c in p1.bases:
+            self.play(p1, p2, c)
 
-            p.end_turn()
-            self.turn += 1
-            p, p_other = p_other, p
+        while self.do_one_user_action(p1, p2):
+            if p2.health <= 0:
+                raise GameOver(p1)
 
-    def do_action(self, p, p_other, a):
+        p1.end_turn()
+
+    def do_one_user_action(self, p1 ,p2):
+        available_actions = self.available_actions(p1, p2)
+        a = p1.choose_action(self, p2, available_actions)
+        if self.verbose:
+            log.info('player %s: %s', p1.name, a)
+        if a == USER_ACTION_DONE:
+            return False
+        elif isinstance(a, UserActionPlayAllCards):
+            for a_ in a.actions:
+                self.do_action(p1, p2, a_)
+        else:
+            self.do_action(p1, p2, a)
+        return True
+
+    def do_action(self, p: Player, p_other: Player, a: UserAction):
         if isinstance(a, UserActionAttackFace):
             if p_other.outposts:
                 raise Exception('user has outposts!' + str(p_other.outposts))
@@ -184,7 +96,13 @@ class Game:
         elif isinstance(a, UserActionBuyCard):
             self.action_buy(p, a.card)
         elif isinstance(a, UserActionCardAction):
+            # TODO: this is always optional... should we remove in choose_action?
+            try:
+                p.remaining_actions.remove((a.card, a.action))
+            except ValueError:
+                p.remaining_actions.remove((a.card, OptionalAction(a.action)))
             a.action.exec(a.card, self, p, p_other)
+
 
     def action_buy(self, p: Player, card: Card, free=False):
         # check enough trade
@@ -234,76 +152,38 @@ class Game:
             action.exec(c, self, p1, p2)
         p1.remaining_actions = new_remaining
 
+    def available_actions(self, p1: Player, p2: Player):
+        actions = []
+        for c in p1.hand:
+            actions.append(UserActionPlayCard(c))
+        for c in self.trade_pile:
+            if c.cost <= p1.trade:
+                actions.append(UserActionBuyCard(c))
+        if p1.trade > 1:
+            actions.append(UserActionBuyCard(EXPLORER))
+        for c, a in p1.remaining_actions:
+            if isinstance(a, OptionalAction):
+                actions.append(UserActionCardAction(c, a.action))
+        if p1.damage:
+            if p2.outposts:
+                for o in p2.outposts:
+                    if o.defence <= p1.damage:
+                        actions.append(UserActionAttackOutpost(o))
+            else:
+                for b in p2.bases:
+                    if b.defence <= p1.damage:
+                        actions.append(UserActionAttackBase(b))
+                actions.append(UserActionAttackFace())
+        actions.append(USER_ACTION_DONE)
+        return actions
 
-class InteractivePlayer(Player):
-
-    def choose_action(self, b: Game, p_other: Player):
-        self._print_player(p_other)
-        self._print_player(self)
-        self._print_cards('trade:', b.trade_pile)
-        self._print_cards('played:', self.in_play)
-        print(f'trade:{self.trade} damage:{self.damage} discard:{p_other.discard}')
-        self._print_cards('draw:', self.draw_pile)
-        self._print_cards('hand:', self.hand)
-
-        print()
-        print('actions:')
-        actions = self.get_actions(b, p_other)
-        for n, a in enumerate(actions, 1):
-            print('{}: {}'.format(n, a))
-        i = input(f'{self.name} action?')
-        if i == 'a':
-            action = UserActionPlayAllCards([a for a in actions if isinstance(a, UserActionPlayCard)])
-        else:
-            action = actions[int(i)-1]
-        return action
-
-    def _print_player(self, p):
-        print(f'{p.name} {p.health}')
-        self._print_cards('bases:', p.bases)
-
-    def _print_cards(self, caption, cards):
-        print(caption)
-        for c in cards:
-            print(f'{c.name} {c.cost} {c.actions}')
-
-    def choose_scrap(self):
-        print('a:')
-        print_pile(self.discard_pile)
-        print('b:')
-        print_pile(self.in_play)
-
-        choice = input('choose card')
-        if not choice:
-            raise UndoMove()
-
-    def choose_pile(self, action, *piles, min_n=0, max_n=1):
-        print(f'choose {min_n} to {max_n} cards from :')
-        piles = [p for p in piles if p]
-        ids = None
-        if len(piles) > 1:
-            for pile in piles:
-                self._print_cards('', pile)
-            ids = input('choose pile and ids:')
-            if ids:
-                pid, *ids = [int(i)-1 for i in ids.split()]
-                pile = piles[pid]
-        else:
-            pile = piles[0]
-            self._print_cards('', pile)
-            ids = input('choose ids:')
-            ids = [int(i) - 1 for i in ids.split()]
-        if not ids:
-            return None, None
-
-        return [pile] + ids
 
 if __name__ == '__main__':
+    from players.interactive_player import InteractivePlayer
+
     p1 = InteractivePlayer('p1')
     p2 = InteractivePlayer('p2')
 
-    draw = DEFAULT_TRADE_PILE.copy()
-    random.shuffle(draw)
-    g=Game([p1,p2], draw_pile=draw, seed=1)
+    g=Game([p1,p2], seed=1)
 
     g.run()
