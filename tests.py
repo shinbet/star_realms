@@ -1,12 +1,18 @@
 import unittest
+from typing import List, Tuple
 from unittest.mock import patch
 
-from cards import EXPLORER
-from engine import Game, UserActionPlayCard, UserActionCardAction
+from cards import EXPLORER, Junkyard, Card
+from engine import Game
+from pile import Pile
 from players.player import Player
+from user_actions import UserActionAttackOutpost, UserActionPlayCard, UserActionCardAction
 
 
 class TestPlayer(Player):
+
+    def do_choose_from_piles(action, filtered_piles: List[Pile], min_n: int, max_n: int) -> Tuple[Pile, List[Card]]:
+        pass
 
     def choose_action(self, b, p_other):
         pass
@@ -32,7 +38,7 @@ class TestActions(unittest.TestCase):
             self.assertSequenceEqual([(EXPLORER, EXPLORER.actions[1])], p1.remaining_actions)
 
         action = UserActionCardAction(EXPLORER, EXPLORER.actions[1])
-        actions = p1.get_actions(g, p2)
+        actions = g.available_actions(p1, p2)
         self.assertIn(action, actions)
 
         with patch.object(TestPlayer, 'choose_action') as choose_action:
@@ -43,6 +49,29 @@ class TestActions(unittest.TestCase):
             self.assertEqual(2, p1.trade)
             self.assertEqual(2, p1.damage)
             self.assertEqual(0, len(p1.remaining_actions))
+
+    def test_attack_outpost(self):
+        p1 = TestPlayer('p1')
+        p2 = TestPlayer('p2')
+        g = Game([p1, p2])
+
+        p1.damage = 10
+        p2.outposts.append(Junkyard)
+
+        action = UserActionAttackOutpost(Junkyard)
+        actions = g.available_actions(p1, p2)
+        self.assertIn(action, actions)
+
+        with patch.object(TestPlayer, 'choose_action') as choose_action:
+            choose_action.return_value = action
+
+            g.do_one_user_action(p1, p2)
+            choose_action.assert_called_once()
+            self.assertEqual(0, len(p2.outposts))
+            self.assertEqual(10-Junkyard.defence, p1.damage)
+
+        actions = g.available_actions(p1, p2)
+        self.assertNotIn(action, actions)
 
 if __name__ == '__main__':
     unittest.main()

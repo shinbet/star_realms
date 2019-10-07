@@ -1,3 +1,5 @@
+import pickle
+import time
 from typing import Tuple, List
 
 from cards import BaseCard, OutpostCard
@@ -12,9 +14,9 @@ class InteractivePlayer(Player):
         self._print_player(p_other)
         self._print_player(self)
         self._print_cards('trade:', b.trade_pile)
-        self._print_cards('played:', self.in_play)
+        self._print_cards('in play:', self.in_play)
         print(f'trade:{self.trade} damage:{self.damage} discard:{p_other.discard}')
-        self._print_cards('draw:', self.draw_pile)
+        #self._print_cards('draw:', self.draw_pile)
         self._print_cards('hand:', self.hand)
 
         print()
@@ -22,30 +24,38 @@ class InteractivePlayer(Player):
         #actions = self.get_actions(b, p_other)
         for n, a in enumerate(actions, 1):
             print('{}: {}'.format(n, a))
-        i = input(f'{self.name} action?')
-        if i == 'a':
-            action = UserActionPlayAllCards([a for a in actions if isinstance(a, UserActionPlayCard)])
-        else:
-            action = actions[int(i)-1]
-        return action
+        while 1:
+            i = input(f'{self.name} action?')
+            if i == 'a':
+                return UserActionPlayAllCards([a for a in actions if isinstance(a, UserActionPlayCard)])
+            elif i.startswith('p'):
+                fname = i[1:]
+                fname.strip()
+                if not fname:
+                    fname = time.strftime('%Y_%m_%d__%H_%M') + '.pkl'
+                with open(fname, 'xb') as f:
+                    pickle.dump(b, f)
+                print(f'wrote file {fname}')
+            else:
+                return actions[int(i)-1]
+
 
     def _print_player(self, p):
         print(f'{p.name} {p.health}')
         self._print_cards('bases:', p.bases)
+        self._print_cards('outposts:', p.outposts)
 
     def _print_cards(self, caption, cards):
         print(caption)
         for c in cards:
             print(f'{c.name} {c.cost} {c.actions}')
 
-    def do_choose_from_piles(self, action, *piles, min_n=0, max_n=1, ship_only=False)  -> Tuple['Pile',List[Card]]:
-        if ship_only:
-            piles = [list(filter(lambda c: not isinstance(c, (BaseCard, OutpostCard)), p)) for p in piles]
-            piles = [p for p in piles if p and len(p) > min_n]
+    def do_choose_from_piles(self, action, piles, min_n, max_n):
 
         print(f'choose {min_n} to {max_n} cards to {action} from :')
         if len(piles) > 1:
-            for pile in piles:
+            for pid, pile in enumerate(piles,1):
+                print(f'pile {pid} {pile.name}:')
                 self._print_cards('', pile)
             ids = input('choose pile and ids:')
             if ids:
@@ -59,4 +69,13 @@ class InteractivePlayer(Player):
         if not ids:
             return None, None
 
-        return [pile] + [pile[i] for i in ids]
+        return pile, [pile[i] for i in ids]
+
+
+if __name__ == '__main__':
+
+    p1 = InteractivePlayer('p1')
+    p2 = InteractivePlayer('p2')
+    players = [p1,p2]
+    g = Game(players, seed=None)
+    winner = g.run()

@@ -23,7 +23,7 @@ class CardType(AutoName):
     BASE = auto()
     OUTPOST = auto()
 
-@dataclass
+@dataclass(frozen=True)
 class Card:
     name : str
     #type: CardType
@@ -34,13 +34,34 @@ class Card:
     def is_ally(self, c: Card):
         return bool(self.faction & c.faction)
 
-@dataclass
+    def __eq__(self, other):
+        return isinstance(other, Card) and self.name == other.name
+
+    def __lt__(self, other):
+        return self.name < other.name
+
+    def __hash__(self):
+        return hash(self.name)
+
+@dataclass(frozen=True)
 class BaseCard(Card):
     defence: int
 
-@dataclass
+    def __eq__(self, other):
+        return isinstance(other, Card) and self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
+
+@dataclass(frozen=True)
 class OutpostCard(Card):
     defence: int
+
+    def __eq__(self, other):
+        return isinstance(other, Card) and self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
 from actions import *
 
@@ -51,7 +72,7 @@ EXPLORER = Card('Explorer', 2, Faction.UNALIGNED, [ActionTrade(2),
 
 BarterWorld = BaseCard('BarterWorld', 4, Faction.TRADE_FEDERATION,
                        [OptionalAction(ChooseAction(ActionTrade(2), ActionHealth(2))),
-                        ActionSelfScrap([ActionDamage(5)])], defence=4)
+                        ActionSelfScrap(ActionDamage(5))], defence=4)
 BattleBlob = Card('BattleBlob', 6, Faction.BLOB, [ActionDamage(8),
                                                   AllyAction(ActionDrawCard()),
                                                   OptionalAction(ActionSelfScrap(ActionDamage(4)))])
@@ -140,7 +161,7 @@ MachineBase = OutpostCard('MachineBase', 7, Faction.MACHINE_CULT,
 # ally to all as action...
 MechWorld = OutpostCard('MechWorld', 5, Faction.ALL,[],defence=6)
 MissileBot = Card('MissileBot', 2, Faction.MACHINE_CULT,
-                  [ActionDamage(2),OptionalAction(ActionScrap()),
+                  [ActionDamage(2), ActionScrap(),
                    AllyAction(ActionDamage(2))])
 MissileMech = Card('MissileMech', 6, Faction.MACHINE_CULT,
                    [ActionDamage(6), OptionalAction(ActionDestroyBase()),
@@ -150,7 +171,7 @@ Mothership = Card('Mothership', 7, Faction.BLOB,
                    AllyAction(ActionDrawCard())])
 PatrolMech = Card('PatrolMech', 4, Faction.MACHINE_CULT,
                   [ChooseAction(ActionTrade(3), ActionDamage(5)),
-                   AllyAction(OptionalAction(ActionScrap()))])
+                   AllyAction(ActionScrap())])
 PortOfCall = OutpostCard('PortOfCall', 6, Faction.TRADE_FEDERATION,
                          [ActionTrade(3),
                           ActionSelfScrap(ActionDrawCard(), OptionalAction(ActionDestroyBase()))],
@@ -175,7 +196,7 @@ SpaceStation = OutpostCard('SpaceStation', 4, Faction.STAR_ALLIANCE,
 StealthNeedle = Card('StealthNeedle', 4, Faction.MACHINE_CULT,
                      [])
 SupplyBot = Card('SupplyBot', 3, Faction.MACHINE_CULT,
-                 [ActionTrade(2), OptionalAction(ActionScrap()),
+                 [ActionTrade(2), ActionScrap(),
                   AllyAction(ActionDamage(2))])
 SurveyShip = Card('SurveyShip', 3, Faction.STAR_ALLIANCE,
                   [ActionTrade(1), ActionDrawCard(1),
@@ -185,7 +206,7 @@ TheHive = BaseCard('TheHive', 5, Faction.BLOB,
                     AllyAction(ActionDrawCard(1))],
                    defence=5)
 TradeBot = Card('TradeBot', 1, Faction.MACHINE_CULT,
-                [ActionTrade(1), OptionalAction(ActionScrap()),
+                [ActionTrade(1), ActionScrap(),
                  AllyAction(ActionDamage(2))])
 TradeEscort = Card('TradeEscort', 5, Faction.TRADE_FEDERATION,
                    [ActionHealth(4), ActionDamage(4),
@@ -202,7 +223,7 @@ WarWorld = OutpostCard('WarWorld', 5, Faction.STAR_ALLIANCE,
                         AllyAction(ActionDamage(4))],
                        defence=4)
 
-DEFAULT_PLAYER_DRAW = [VIPER]*3 + [SCOUT]*7
+DEFAULT_PLAYER_DRAW = [VIPER]*2 + [SCOUT]*8
 TRADE_ROW_CARDS = [
        # Machine Cult
        TradeBot,3,

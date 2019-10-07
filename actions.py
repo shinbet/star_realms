@@ -1,25 +1,31 @@
 
-from cards import Card
+from cards import Card, BaseCard, OutpostCard
+import logging
+log = logging.getLogger(__name__)
 
 class Action:
     def exec(self, c: Card, game, p1, p2):
         raise NotImplementedError()
     def __eq__(self, other):
-        if isinstance(other, self.__class__) and self.__dict__ == other.__dict__:
-            return True
-        return False
+        return other.__class__ == self.__class__ and self.__dict__ == other.__dict__
+
     def __repr__(self):
         return str(self)
+
+    def __hash__(self):
+        return id(self)
+
 
 class ActionFreeShipCard(Action):
     def __init__(self, on_top=True):
         self.on_top = on_top
 
     def exec(self, c: Card, game: 'Game', p1, p2):
-        pile, cards = p1.choose_from_piles('buy', game.trade_pile, min_n=1, max_n=1, ship_only=True, remove_from_pile=False)
-        if self.on_top:
-            p1.on_top += 1
-        game.action_buy(p1, cards[0], free=True)
+        pile, cards = p1.choose_from_piles('buy', game.trade_pile, min_n=0, max_n=1, ship_only=True, remove_from_pile=False)
+        if pile:
+            if self.on_top:
+                p1.on_top += 1
+            game.action_buy(p1, cards[0], free=True)
     def __str__(self):
         if self.on_top:
             return 'get free ship and put on top of draw pile'
@@ -29,8 +35,8 @@ class ActionFreeShipCard(Action):
 class ActionScrap(Action):
     def exec(self, c: Card, game, p1, p2):
         pile, cards = p1.choose_from_piles('scrap', p1.hand, p1.discard_pile)
-        if pile is not None:
-            game.scrap_pile.extend(cards)
+        #if pile is not None:
+        #    game.scrap_pile.extend(cards)
     def __str__(self):
         return 'scrap from hand or discard pile'
 
@@ -38,9 +44,14 @@ class ActionTradeRowScrap(Action):
     def exec(self, c: Card, game, p1, p2):
         pile, cards = p1.choose_from_piles('scrap', game.trade_pile, remove_from_pile=False)
         if cards:
-            game.scrap_pile.extend(cards)
+            #game.scrap_pile.extend(cards)
             for card in cards:
-                game.trade_pile[game.trade_pile.index(card)] = game.draw_pile.pop()
+                idx = game.trade_pile.index(card)
+                try:
+                    game.trade_pile[idx] = game.draw_pile.pop()
+                except IndexError:
+                    # ran out of cards
+                    game.trade_pile[idx:] = game.trade_pile[idx + 1:]
     def __str__(self):
         return 'scrap from trade row'
 
@@ -77,6 +88,8 @@ class AllyAction(Action):
 class OptionalAction(Action):
     def __init__(self, action):
         self.action = action
+    def exec(self, c: Card, game, p1, p2):
+        self.action.exec(c, game, p1, p2)
     def __str__(self):
         return 'Optional: ' + str(self.action)
 
@@ -94,14 +107,23 @@ class ActionSelfScrap(OptionalAction):
         self.actions = actions
         self.action = self
     def exec(self, c: Card, game, p1, p2):
-        try:
+        # FIXME: actuall card is important... we might have multiple with remaining actions
+        if isinstance(c, BaseCard):
+            p1.bases.remove(c)
+        elif isinstance(c, OutpostCard):
+            p1.outposts.remove(c)
+        else:
             p1.in_play.remove(c)
-        except:
-            pass
+
         for a in self.actions:
-            a.exec(c, game, p1, p2)
+            try:
+                a.exec(c, game, p1, p2)
+            except AttributeError:
+                log.exception('ActionSelfScrap got exception')
     def __str__(self):
         return 'scrap self, then:' + str(self.actions)
+    def __eq__(self, other):
+        return other.__class__ == self.__class__ and self.actions == other.actions
 
 class ActionDrawCard(Action):
     def __init__(self, n=1):
@@ -113,8 +135,8 @@ class ActionDrawCard(Action):
 
 class ActionDrawCardXAllies(Action):
     def exec(self, c: Card, game, p1, p2):
-        n = len(1 for ac in p1.in_play if c.is_ally(ac))
-        p1.draw(self.n)
+        n = sum(1 for ac in p1.in_play if c.is_ally(ac))
+        p1.draw(n)
     def __str__(self):
         return 'Draw a card for each ally played'
 
@@ -122,7 +144,7 @@ class ActionDestroyBase(Action):
     def exec(self, c: Card, game, p1, p2):
         pile, cards = p1.choose_from_piles('destroy', p2.outposts or p2.bases)
         if pile:
-            p2.discard.extend[cards]
+            p2.discard_pile.extend(cards)
     def __str__(self):
         return 'Destroy target base'
 
@@ -132,7 +154,7 @@ class ActionScarpDrawCard(Action):
     def exec(self, c: Card, game, p1, p2):
         pile, cards = p1.choose_from_piles('scrap', p1.hand, p1.discard_pile, max_n=self.n)
         if pile:
-            game.scrap_pile.extend(cards)
+            #game.scrap_pile.extend(cards)
             p1.draw(len(cards))
     def __str__(self):
         return f'scrap up to {self.n} cards from discard or hand and draw as many cards'
