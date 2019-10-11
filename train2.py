@@ -10,9 +10,12 @@ from torch.utils.data import DataLoader
 
 from engine import Game
 from match import Bench, make_player
+from players.NN.NNSimple import NNSimplePlayer
 from players.NN.NNUCTPlayer import NNUCTPlayer, Net
 from players.NN.utils import GamesDataset, ToTensor
 import logging
+
+from players.simple import SimplePlayer
 
 log = logging.getLogger(__file__)
 
@@ -60,7 +63,6 @@ def load_checkpoint(fname):
 WORKER_NN = None
 WORKER_MODEL_ID = None
 WORKER_DNAME = None
-WORKER_ROLLOUTS = None
 def game_gen_worker(*args):
     global WORKER_NN
     if not WORKER_NN:
@@ -71,13 +73,13 @@ def game_gen_worker(*args):
         WORKER_NN.eval()
     nn = WORKER_NN
 
-    p1 = NNUCTPlayer('p1', nn=nn, num_rollouts=WORKER_ROLLOUTS, train=True)
-    p2 = NNUCTPlayer('p2', nn=nn, num_rollouts=WORKER_ROLLOUTS, train=True)
+    p1 = NNSimplePlayer('p1', nn=nn, train=True)
+    p2 = NNSimplePlayer('p2', nn=nn, train=True)
     g = Game(players=[p1, p2])
     winner = g.run()
     for _ in range(5):
         try:
-            fname = '{:05}_{}__{}'.format(WORKER_MODEL_ID, int(time.time()), len(p1._states) + len(p2._states)) + '.json'
+            fname = '{:05}_{}__{}.json'.format(WORKER_MODEL_ID, int(time.time()), len(p1._states) + len(p2._states))
             with open(f'{WORKER_DNAME}{fname}', 'x') as f:
                 json.dump({'p1_s': p1._states, 'p2_s': p2._states, 'w': 0 if p1 == winner else 1}, f)
                 log.info('wrote %s', fname)
@@ -158,10 +160,10 @@ def train(args):
 
 def bench(args):
     dname = 'run_{}/'.format(args.run)
-    p = [make_player(NNUCTPlayer, id_, num_rollouts=20, nn=load_net(dname + fname_from_id(id_))) for id_ in args.ids]
+    p = [make_player(NNSimplePlayer, id_, nn=load_net(dname + fname_from_id(id_))) for id_ in args.ids]
 
     from players.random_player import RandomPlayer, WEIGHT_MAP26
-    p.append(make_player(RandomPlayer, 'lr26', w=WEIGHT_MAP26))
+    p.append(make_player(SimplePlayer, 'simple'))
     b = Bench(p)
     b.run(args.games)
     b.summary()
@@ -202,7 +204,7 @@ def get_parser():
     bench_p = subparsers.add_parser('bench', help="bench")
     bench_p.add_argument('run', help='training run')
     bench_p.add_argument('ids', nargs='+', help='models')
-    bench_p.add_argument('-n', '--games', type=int, default=50, help='number of games to run against each')
+    bench_p.add_argument('-n', '--games', type=int, default=200, help='number of games to run against each')
     bench_p.set_defaults(func=bench)
 
     loop = subparsers.add_parser('loop', help="generate training data and train")

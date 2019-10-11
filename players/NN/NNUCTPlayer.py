@@ -1,7 +1,5 @@
-import json
 import logging
 import random
-import time
 from itertools import chain
 
 from cards import TRADE_ROW_CARDS, VIPER, SCOUT, EXPLORER, OutpostCard, BaseCard

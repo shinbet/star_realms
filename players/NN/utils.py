@@ -1,9 +1,12 @@
 import glob
 import json
 import re
+import logging
 
 import torch
 from torch.utils.data import Dataset
+
+log = logging.getLogger(__name__)
 
 class ToTensor(object):
     """Convert list in sample to Tensors."""
@@ -29,13 +32,24 @@ class GamesDataset(Dataset):
 '''
 
 class GamesDataset(Dataset):
-    def __init__(self, dname):
-        self.dname = dname
+    def __init__(self, *dnames, num_games=None):
+
+        fnames = []
+        for dname in dnames:
+            fnames.extend(list(glob.glob(dname + '*.json')))
+
+        fnames.sort()
+        if num_games:
+            fnames = fnames[-num_games:]
 
         trainx, trainy = [], []
-        for fname in glob.glob(self.dname + '*.json'):
+        for fname in fnames:
             with open(fname, 'r') as f:
-                d = json.load(f)
+                try:
+                    d = json.load(f)
+                except Exception:
+                    log.warning('bad file data: %s; skipping', fname)
+                    continue
                 w = 1. if d['w'] == 0 else -1.
                 trainx.extend(d['p1_s'])
                 trainx.extend(d['p2_s'])

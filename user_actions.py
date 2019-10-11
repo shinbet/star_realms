@@ -1,4 +1,3 @@
-
 from cards import Card, OutpostCard, BaseCard
 
 

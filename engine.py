@@ -39,7 +39,7 @@ class Game:
         self.verbose = verbose
 
     def __copy__(self):
-        return Game(self.players, self.turn, self.trade_pile.copy(), self.draw_pile.copy(), self.verbose)
+        return Game(self.players, self.turn, self.trade_pile, self.draw_pile, self.verbose)
 
     def __hash__(self):
         v = (self.turn, self.draw_pile, self.trade_pile, self.players[0], self.players[1])
@@ -65,6 +65,9 @@ class Game:
         if p1.need_draw:
             p1.draw(5 if self.turn > 0 else 3)
             p1.need_draw = False
+
+            if p1.discard:
+                p1.choose_discard(p1.discard)
 
             for c in p1.outposts:
                 self.play(p1, p2, c)

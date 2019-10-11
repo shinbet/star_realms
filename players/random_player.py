@@ -100,7 +100,7 @@ class RandomPlayer(Player):
 
     choose_card_action = choose_action
 
-    def do_choose_from_piles(self, action, piles, min_n=0, max_n=1, ship_only=False):
+    def do_choose_from_piles(self, action, piles, min_n, max_n):
         n = random.randint(min_n, max_n)
         if not n:
             return None, None

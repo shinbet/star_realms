@@ -188,7 +188,7 @@ class ActionDiscardAndDraw(Action):
     def __init__(self, n):
         self.n = n
     def exec(self, c: Card, game, p1, p2):
-        pile, cards = p1.choose_from_piles('discard', p1.hand, max_n=self.n)
+        pile, cards = p1.choose_from_piles('discard_draw', p1.hand, max_n=self.n)
         if pile:
             p1.discard_pile.extend(cards)
             p1.draw(len(cards))
