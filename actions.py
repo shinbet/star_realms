@@ -135,6 +135,7 @@ class ActionDrawCard(Action):
 
 class ActionDrawCardXAllies(Action):
     def exec(self, c: Card, game, p1, p2):
+        # fixme: this is wrong - it should be for all PLAYED cards this round, not in play...
         n = sum(1 for ac in p1.in_play if c.is_ally(ac))
         p1.draw(n)
     def __str__(self):

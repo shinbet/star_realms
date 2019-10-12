@@ -12,6 +12,9 @@ NO_BUY_RATE = 0.05
 class NNSimplePlayer(SimplePlayer):
     def __init__(self, name, nn, *args, train=False, eps=0.1, **kwargs):
         super().__init__(name, *args, **kwargs)
+        if isinstance(nn, str):
+            nn = load_from_name(nn)
+            nn.eval()
         self._nn = nn
         self._train = train
         self._eps = eps
@@ -33,15 +36,30 @@ class NNSimplePlayer(SimplePlayer):
                 if c is not None:
                     # for now assume to discard... we can handle on top later
                     p1.discard_pile.append(c)
+                    p1.trade -= c.cost
                 state = to_vec(game, p1, p2)
                 v = self._nn.forward(state).item()
                 Q.append((c,v))
                 states[c] = state
                 if c is not None:
                     p1.discard_pile.pop()
+                    p1.trade += c.cost
             c = max(Q, key=itemgetter(1))[0]
-            #log.info('buy scores: %s', Q)
-            log.info('%s chose %s', self.name, c.name if c else 'nothing')
+            #log.info('buy scores: %s', [(c.name if c else 'nothing', v) for c,v in Q])
+            #log.info('%s chose %s', self.name, c.name if c else 'nothing')
             if self._train:
                 self._states.append(states[c])
         return c
+
+if __name__ == '__main__':
+    from players.interactive_player import InteractivePlayer
+    from engine import Game
+    from train2 import load_net, fname_from_id, load_from_name
+    import train2
+    import sys
+    import os
+    os.chdir(os.path.dirname(train2.__file__))
+    p1 = InteractivePlayer('p1')
+    p2 = NNSimplePlayer('p2', '3 6')
+    g = Game(players=[p1, p2])
+    winner = g.run()

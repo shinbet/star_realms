@@ -31,8 +31,16 @@ class GamesDataset(Dataset):
         return n
 '''
 
+def discounted_v(v, n, d):
+    d_v = []
+    for _ in range(n):
+        d_v.append(v)
+        v = v * d
+    return reversed(d_v)
+
+
 class GamesDataset(Dataset):
-    def __init__(self, *dnames, num_games=None):
+    def __init__(self, *dnames, num_games=None, discount=None):
 
         fnames = []
         for dname in dnames:
@@ -46,16 +54,21 @@ class GamesDataset(Dataset):
         for fname in fnames:
             with open(fname, 'r') as f:
                 try:
-                    d = json.load(f)
+                    data = json.load(f)
                 except Exception:
                     log.warning('bad file data: %s; skipping', fname)
                     continue
-                w = 1. if d['w'] == 0 else -1.
-                trainx.extend(d['p1_s'])
-                trainx.extend(d['p2_s'])
+                w = 1. if data['w'] == 0 else -1.
+                trainx.extend(data['p1_s'])
+                trainx.extend(data['p2_s'])
 
-                trainy.extend([w]*len(d['p1_s']))
-                trainy.extend([-w]*len(d['p2_s']))
+                if discount:
+                    d = 1.0-discount
+                    trainy.extend(discounted_v(w, len(data['p1_s']), d))
+                    trainy.extend(discounted_v(-w, len(data['p2_s']), d))
+                else:
+                    trainy.extend([w]*len(data['p1_s']))
+                    trainy.extend([-w]*len(data['p2_s']))
         self.trainx = trainx
         self.trainy = trainy
 

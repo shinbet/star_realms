@@ -96,9 +96,10 @@ class Player(metaclass=ABCMeta):
     def choose_from_piles(self, action: str, *piles: Pile, min_n=0, max_n=1, ship_only=False, remove_from_pile=True) -> Tuple[Pile, List[Card]]:
         if ship_only:
             filtered_piles = [Pile(p.name, filter(lambda c: not isinstance(c, (BaseCard, OutpostCard)), p)) for p in piles]
-            filtered_piles = [p for p in filtered_piles if p and len(p) > min_n]
         else:
             filtered_piles = piles
+
+        filtered_piles = [p for p in filtered_piles if p and len(p) > max(1, min_n)]
 
         if not filtered_piles:
             if min_n > 0:

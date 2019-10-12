@@ -11,33 +11,36 @@ from user_actions import UserActionPlayAllCards, UserActionPlayCard
 class InteractivePlayer(Player):
 
     def choose_action(self, b: Game, p_other: Player, actions):
-        self._print_player(p_other)
-        self._print_player(self)
-        self._print_cards('trade:', b.trade_pile)
-        self._print_cards('in play:', self.in_play)
-        print(f'trade:{self.trade} damage:{self.damage} discard:{p_other.discard}')
-        #self._print_cards('draw:', self.draw_pile)
-        self._print_cards('hand:', self.hand)
-
-        print()
-        print('actions:')
-        #actions = self.get_actions(b, p_other)
-        for n, a in enumerate(actions, 1):
-            print('{}: {}'.format(n, a))
         while 1:
-            i = input(f'{self.name} action?')
-            if i == 'a':
-                return UserActionPlayAllCards([a for a in actions if isinstance(a, UserActionPlayCard)])
-            elif i.startswith('p'):
-                fname = i[1:]
-                fname.strip()
-                if not fname:
-                    fname = time.strftime('%Y_%m_%d__%H_%M') + '.pkl'
-                with open(fname, 'xb') as f:
-                    pickle.dump(b, f)
-                print(f'wrote file {fname}')
-            else:
-                return actions[int(i)-1]
+            self._print_player(p_other)
+            self._print_player(self)
+            self._print_cards('trade:', b.trade_pile)
+            self._print_cards('in play:', self.in_play)
+            print(f'trade:{self.trade} damage:{self.damage} discard:{p_other.discard}')
+            #self._print_cards('draw:', self.draw_pile)
+            self._print_cards('hand:', self.hand)
+
+            print()
+            print('actions:')
+            #actions = self.get_actions(b, p_other)
+            for n, a in enumerate(actions, 1):
+                print('{}: {}'.format(n, a))
+            try:
+                i = input(f'{self.name} action?')
+                if i == 'a':
+                    return UserActionPlayAllCards([a for a in actions if isinstance(a, UserActionPlayCard)])
+                elif i.startswith('p'):
+                    fname = i[1:]
+                    fname.strip()
+                    if not fname:
+                        fname = time.strftime('%Y_%m_%d__%H_%M') + '.pkl'
+                    with open(fname, 'xb') as f:
+                        pickle.dump(b, f)
+                    print(f'wrote file {fname}')
+                else:
+                    return actions[int(i)-1]
+            except Exception as e:
+                print(f'bad choice, got exception: {e}')
 
 
     def _print_player(self, p):
