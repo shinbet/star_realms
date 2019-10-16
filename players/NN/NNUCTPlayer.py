@@ -27,7 +27,7 @@ class Net(nn.Module):
 
     def forward(self, x):
         if type(x) == list:
-            x = torch.tensor(x)
+            x = torch.tensor(x).unsqueeze(0)
 
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))

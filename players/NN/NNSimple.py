@@ -13,6 +13,7 @@ class NNSimplePlayer(SimplePlayer):
     def __init__(self, name, nn, *args, train=False, eps=0.1, **kwargs):
         super().__init__(name, *args, **kwargs)
         if isinstance(nn, str):
+            from train import load_from_name
             nn = load_from_name(nn)
             nn.eval()
         self._nn = nn

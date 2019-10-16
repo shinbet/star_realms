@@ -6,17 +6,16 @@ import re
 import time
 
 import torch
+from torch import nn
 from torch.nn import MSELoss
 from torch.utils.data import DataLoader
 
 from engine import Game
-from match import Bench, make_player, Tourney
+from match import Bench, make_player, RoundRobin
 from players.NN.NNSimple import NNSimplePlayer
 from players.NN.NNUCTPlayer import NNUCTPlayer, Net
 from players.NN.utils import GamesDataset, ToTensor
 import logging
-
-from players.simple import SimplePlayer
 
 log = logging.getLogger(__file__)
 
@@ -152,13 +151,13 @@ def train(args):
 
     for epoch in range(epochs):
         for xb, yb in train_dl:
+            opt.zero_grad()
             pred = model(xb)
             yb = yb.view(-1, 1)
             loss = loss_func(pred, yb)
 
             loss.backward()
             opt.step()
-            opt.zero_grad()
 
         if epoch % 40 == 0:
             print(epoch, loss.item())
@@ -174,7 +173,7 @@ def bench(args):
     from players.random_player import RandomPlayer, WEIGHT_MAP26
     #p.append(make_player(SimplePlayer, 'simple'))
     if args.tourney:
-        b = Tourney(p)
+        b = RoundRobin(p)
     else:
         b = Bench(p)
     b.run(args.games)

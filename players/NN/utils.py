@@ -36,7 +36,7 @@ def discounted_v(v, n, d):
     for _ in range(n):
         d_v.append(v)
         v = v * d
-    return reversed(d_v)
+    return d_v
 
 
 class GamesDataset(Dataset):
@@ -78,3 +78,16 @@ class GamesDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.trainx)
+
+
+def contruct_model(layers):
+    from torch import nn
+    l = []
+    in_p = layers[0]
+    for out_p in layers:
+        l.append(nn.Linear(in_p, out_p))
+        l.append(nn.ReLU())
+        in_p = out_p
+    l.append(nn.Linear(in_p, 1))
+    l.append(nn.Tanh())
+    return nn.Sequential(*l)
