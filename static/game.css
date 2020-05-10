@@ -1,0 +1,43 @@
+.board {
+    display: flex;
+    flex-direction: column;
+}
+
+#trade-row {
+    display: flex;
+    flex-direction: row;
+}
+.player {
+    display: flex;
+    flex-direction: row;
+}
+.bases {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+}
+.card-row {
+    display: flex;
+    flex-direction: row;
+}
+.card-col {
+    height: 300px;
+    width: 214px;
+}
+
+.notbuyable {
+    opacity: 0.8;
+}
+
+
+.message_holder {
+  margin: 0px;
+  padding: 0px;
+  //position: absolute;
+  bottom: 0px;
+  left: 0px;
+  width: inherit;
+  height: 100px;
+  overflow: hidden;
+  overflow-y: scroll;
+}
