@@ -1,4 +1,5 @@
 import asyncio
+import functools
 from queue import Queue
 from threading import Thread
 
@@ -15,12 +16,26 @@ STOP_GAME = object()
 async def handle_index(request):
     return web.FileResponse('static/index.html')
 
-#routes = web.RouteTableDef()
+@functools.lru_cache(maxsize=None)
+def card_to_fname(card, ext):
+    # file name: 'MissileBot' -> 'Missile-Bot-214x300.jpg'
+    res = []
+    next_c = 1
+    for i, c in enumerate(card):
+        if i > next_c and c.isupper():
+            res.append('-')
+            next_c = i+1 # skip next... HQ stays HQ, not H-Q
+        res.append(c)
+    return ''.join(res) + ext
 
-#@routes.get('/card/{name}')
 async def handle_card_image(request):
     card = request.match_info['name']
-    fname = CARD_TO_FILENAME[card]
+    fname = card_to_fname(card, ext='-214x300.jpg')
+    return web.FileResponse(f'static/cards/{fname}')
+
+async def handle_base_image(request):
+    card = request.match_info['name']
+    fname = card_to_fname(card, ext='-300x214.jpg')
     return web.FileResponse(f'static/cards/{fname}')
 
 
@@ -139,60 +154,9 @@ app = web.Application()
 app.add_routes([web.get('/', handle_index),
                 web.static('/static', './static/', show_index=True),
                 web.get('/card/{name}', handle_card_image),
+                web.get('/base/{name}', handle_base_image),
                 web.get('/ws', wshandle),
                 ])
-
-CARD_TO_FILENAME = {
-    'TradeBot': 'Trade-Bot-214x300.jpg',
-    'MissileBot': 'Missile-Bot-214x300.jpg',
-    'SupplyBot': 'Supply-Bot-214x300.jpg',
-    'PatrolMech': 'Patrol-Mech-214x300.jpg',
-    'StealthNeedle': 'Stealth-Needle-214x300.jpg',
-    'BattleMech': 'Battle-Mech-214x300.jpg',
-    'MissileMech': 'Missile-Mech-214x300.jpg',
-    'BattleStation': 'Battle-Station-300x214.jpg',
-    'MechWorld': 'Mech-World-300x214.jpg',
-    'BrainWorld': 'Brain-World-300x214.jpg',
-    'MachineBase': 'Machine-Base-300x214.jpg',
-    'Junkyard': 'Junkyard-300x214.jpg',
-    'ImperialFighter': 'Imperial-Fighter-214x300.jpg',
-    'ImperialFrigate': 'Imperial-Frigate-214x300.jpg',
-    'SurveyShip': 'Survey-Ship-214x300.jpg',
-    'Corvette': 'Corvette-214x300.jpg',
-    'Battlecruiser': 'Battlecruiser-214x300.jpg',
-    'Dreadnaught': 'Dreadnaught-214x300.jpg',
-    'SpaceStation': 'Space-Station-300x214.jpg',
-    'RecyclingStation': 'Recycling-Station-300x214.jpg',
-    'WarWorld': 'War-World-300x214.jpg',
-    'RoyalRedoubt': 'Royal-Redoubt-300x214.jpg',
-    'FleetHQ': 'Fleet-HQ-300x214.jpg',
-    'FederationShuttle': 'Federation-Shuttle-214x300.jpg',
-    'Cutter': 'Cutter-214x300.jpg',
-    'EmbassyYacht': 'Embassy-Yacht-214x300.jpg',
-    'Freighter': 'Freighter-214x300.jpg',
-    'CommandShip': 'Command-Ship-214x300.jpg',
-    'TradeEscort': 'Trade-Escort-214x300.jpg',
-    'Flagship': 'Flagship-214x300.jpg',
-    'TradingPost': 'Trading-Post-300x214.jpg',
-    'BarterWorld': 'Barter-World-300x214.jpg',
-    'DefenseCenter': 'Defense-Center-300x214.jpg',
-    'CentralOffice': 'Central-Office-300x214.jpg',
-    'PortOfCall': 'Port-Of-Call-300x214.jpg',
-    'BlobFighter': 'Blob-Fighter-214x300.jpg',
-    'TradePod': 'Trade-Pod-214x300.jpg',
-    'BattlePod': 'Battle-Pod-214x300.jpg',
-    'Ram': 'Ram-214x300.jpg',
-    'BlobDestroyer': 'Blob-Destroyer-214x300.jpg',
-    'BattleBlob': 'Battle-Blob-214x300.jpg',
-    'BlobCarrier': 'Blob-Carrier-214x300.jpg',
-    'Mothership': 'Mothership-214x300.jpg',
-    'BlobWheel': 'Blob-Wheel-300x214.jpg',
-    'TheHive': 'The-Hive-300x214.jpg',
-    'BlobWorld': 'Blob-World-300x214.jpg',
-    'Viper': 'Viper-214x300.jpg',
-    'Scout': 'Scout-214x300.jpg',
-    'Explorer': 'Explorer-214x300.jpg',
-}
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
