@@ -171,7 +171,7 @@ Mothership = Card('Mothership', 7, Faction.BLOB,
                    AllyAction(ActionDrawCard())])
 PatrolMech = Card('PatrolMech', 4, Faction.MACHINE_CULT,
                   [ChooseAction(ActionTrade(3), ActionDamage(5)),
-                   AllyAction(ActionScrap())])
+                   AllyAction(OptionalAction(ActionScrap()))])
 PortOfCall = OutpostCard('PortOfCall', 6, Faction.TRADE_FEDERATION,
                          [ActionTrade(3),
                           ActionSelfScrap(ActionDrawCard(), OptionalAction(ActionDestroyBase()))],
