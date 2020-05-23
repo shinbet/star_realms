@@ -2,7 +2,8 @@ import unittest
 from typing import List, Tuple
 from unittest.mock import patch
 
-from cards import EXPLORER, Junkyard, Card
+from cards import EXPLORER, Junkyard, Card, BattleStation, PatrolMech, BlobCarrier, BlobWheel, OptionalAction, \
+    ActionFreeShipCard
 from engine import Game
 from pile import Pile
 from players.player import Player
@@ -56,6 +57,7 @@ class TestActions(unittest.TestCase):
         g = Game([p1, p2])
 
         p1.damage = 10
+        p1.trade = 100
         p2.outposts.append(Junkyard)
 
         action = UserActionAttackOutpost(Junkyard)
@@ -72,6 +74,29 @@ class TestActions(unittest.TestCase):
 
         actions = g.available_actions(p1, p2)
         self.assertNotIn(action, actions)
+
+    def test_card_optional_ally_action(self):
+        p1 = TestPlayer('p1')
+        p2 = TestPlayer('p2')
+        g = Game([p1, p2])
+        p1.trade = 100
+        p1.bases.append(BlobWheel)
+        p1.hand.append(BlobCarrier)
+
+        action = UserActionCardAction(BlobCarrier, ActionFreeShipCard())
+
+        actions = g.available_actions(p1, p2)
+        self.assertNotIn(action, actions)
+
+        with patch.object(TestPlayer, 'choose_action') as choose_action:
+            choose_action.return_value = UserActionPlayCard(BlobCarrier)
+            g.do_one_user_action(p1, p2)
+
+            choose_action.assert_called_once()
+            self.assertEqual(1, len(p1.in_play))
+
+        actions = g.available_actions(p1, p2)
+        self.assertIn(action, actions)
 
 if __name__ == '__main__':
     unittest.main()

@@ -164,7 +164,7 @@ class Game:
     def play(self, p1 : Player, p2 : Player, card: Card):
         remaining_actions = [(card, action) for action in card.actions] + p1.remaining_actions
 
-        is_allied = card.faction != Faction.UNALIGNED and any(card.is_ally(c) for c in chain(p1.hand, p1.bases, p1.outposts))
+        is_allied = card.faction != Faction.UNALIGNED and any(card.is_ally(c) for c in chain(p1.in_play, p1.bases, p1.outposts))
 
         new_remaining = []
         for c, action in remaining_actions:
