@@ -125,3 +125,9 @@ class Player(metaclass=ABCMeta):
 
     def choose_card_action(self, b, p_other, actions):
         return self.choose_action(b, p_other, actions)
+
+    def won(self, b, other):
+        pass
+
+    def lost(self, b, other):
+        pass

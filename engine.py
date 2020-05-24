@@ -59,6 +59,8 @@ class Game:
         except GameOver as e:
             if self.verbose:
                 log.info(f'winner is: {e.winner.name}')
+            p1.won(self, p2)
+            p2.lost(self, p1)
             return e.winner
 
     def do_turn(self, p1: Player, p2: Player):
