@@ -48,7 +48,7 @@ function process_event(ev) {
             break;
         case 'choose_action':
             actions = data;
-            $('div.message_holder').append('<div><b style="color: #000">choose_action:' + JSON.stringify(data) + '</div>');
+            //$('div.message_holder').append('<div><b style="color: #000">choose_action:' + JSON.stringify(data) + '</div>');
             $('div.actions').empty();
             for (const [key, value] of Object.entries(data)) {
                 $('div.actions').append('<button onclick=send_action(' + key + ')>' + value + '<button/>');
@@ -80,7 +80,7 @@ function process_event(ev) {
 }
 
 function game_over(msg) {
-    $('#game_over_status').html(msg);
+    $('#game_over_msg').html(msg);
     $('#game_over').show();
 }
 
@@ -236,9 +236,9 @@ function choose_piles(data, callback) {
     function update_status() {
         //console.log("in update_status");
         if(num_selected>=min_select) {
-            $("#choose_piles_done").visibility = "visible";
+            $("#choose_piles_done").show();
         } else {
-            $("#choose_piles_done").visibility = "hidden";
+            $("#choose_piles_done").hide();
         }
         if(pile_selected != undefined) {
             const selected = modal.find(`ul[pile=${pile_selected}] > .selected`);
