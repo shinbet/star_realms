@@ -140,7 +140,7 @@ Flagship = Card('Flagship', 6, Faction.TRADE_FEDERATION,
                 [ActionDamage(5), ActionDrawCard(),
                  AllyAction(ActionHealth(5))])
 FleetHQ = BaseCard('FleetHQ', 8, Faction.STAR_ALLIANCE,
-                   [], # TODO: all ship get combat
+                   [], # every ship played dmg+1 - taken care as special case in engine
                    defence=8)
 Freighter = Card('Freighter', 4, Faction.TRADE_FEDERATION,
                  [ActionTrade(4),
@@ -193,8 +193,8 @@ SpaceStation = OutpostCard('SpaceStation', 4, Faction.STAR_ALLIANCE,
                             ActionSelfScrap(ActionTrade(4))],
                            defence=4)
 # TODO: copy ship ability
-StealthNeedle = Card('StealthNeedle', 4, Faction.MACHINE_CULT,
-                     [])
+#StealthNeedle = Card('StealthNeedle', 4, Faction.MACHINE_CULT,
+#                     [])
 SupplyBot = Card('SupplyBot', 3, Faction.MACHINE_CULT,
                  [ActionTrade(2), ActionScrap(),
                   AllyAction(ActionDamage(2))])
@@ -230,7 +230,7 @@ TRADE_ROW_CARDS = [
        MissileBot, 3,
        SupplyBot, 3,
        PatrolMech, 2,
-       StealthNeedle, 1,
+       #StealthNeedle, 1,
        BattleMech, 1,
        MissileMech, 1,
        BattleStation, 2,

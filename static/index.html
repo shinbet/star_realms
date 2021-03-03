@@ -9,29 +9,30 @@
 
     <title>Star Realms test</title>
 </head>
-<body>
-    <div class="grid-container">
-      <div class="card_draw" id="trade-row"><ul class="card-list"></ul></div>
-      <div class="bases_other" id="bases_other"></div>
-      <div class="in_play" id="inplay"><ul class="card-list"></ul></div>
-      <div class="draw" id="hand"><ul class="card-list"></ul></div>
-      <div class="player_info" id="player_me"></div>
-      <div class="discard"></div>
-      <div class="other_info" id="player_other"></div>
-      <div class="bases" id="bases_me"><ul class="card-list"></ul></div>
-      <div class="nav">
-        <div class="col" id="nav_status">Not connected</div>
-        <div class="col"><button onclick="new_game()">new game</button></div>
-        <!--testing-->
-        <div class="col"><button onclick="test_choose_piles()">choose_piles</button></div>
-      </div>
-      <div class="actions"></div>
-      <div class="message_holder"></div>
-    </div>
-  <div id="choose_cards">test</div>
-  <div id="game_over"><h1 id="game_over_msg"></h1><button onclick="hide_and_new_game()">new game</button></div>
-  <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-  <script src="/static/game.js"></script>
-</body>
+    <body>
+        <div class="grid-container">
+          <div class="card_draw" id="trade-row"><ul class="card-row"></ul></div>
+          <div class="bases_other" id="bases_other"><ul class="card-row"></ul></div>
+          <div class="in_play" id="inplay"><ul class="card-row"></ul></div>
+          <div class="draw" id="hand"><ul class="card-row"></ul></div>
+          <div class="player_info" id="player_me"></div>
+          <div class="discard"></div>
+          <div class="other_turn" id="other_turn"></div>
+          <div class="other_info" id="player_other"></div>
+          <div class="bases" id="bases_me"><ul class="card-col"></ul></div>
+          <div class="nav">
+            <div class="col" id="nav_status">Not connected</div>
+            <div class="col"><button onclick="new_game()">new game</button></div>
+            <!--testing-->
+            <div class="col"><button onclick="test_choose_piles()">choose_piles</button></div>
+          </div>
+          <div class="actions"></div>
+          <div class="message_holder"></div>
+        </div>
+      <div id="choose_cards">test</div>
+      <div id="game_over"><h1 id="game_over_msg"></h1><button onclick="hide_and_new_game()">new game</button></div>
+      <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+      <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+      <script src="/static/game.js"></script>
+    </body>
 </html>

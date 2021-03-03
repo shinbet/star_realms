@@ -301,7 +301,7 @@ def do_train(args):
 
     tconf = conf['train']
 
-    for f in ('lr', 'epochs', 'activation'):
+    for f in ('lr', 'epochs', 'activation', 'workers'):
         if getattr(args, f, None):
             tconf[f] = getattr(args, f)
 
@@ -331,7 +331,7 @@ def get_parser():
 
     parser = ArgumentParser(description='NN player training')
     parser.add_argument('dir', help='training run dir')
-
+    parser.add_argument('-w', '--workers', type=int, help='workers')
     subparsers = parser.add_subparsers(help='sub-command help')
     '''
     

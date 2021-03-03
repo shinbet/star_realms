@@ -53,9 +53,9 @@ function process_event(ev) {
             for (const [key, value] of Object.entries(data)) {
                 $('div.actions').append('<button onclick=send_action(' + key + ')>' + value + '<button/>');
             }
-            if(state.player.hand.length > 0) {
-                $('div.actions').append('<button onclick=send_action("all")>play all<button/>');
-            }
+            //if(state.player.hand.length > 0) {
+            //    $('div.actions').append('<button onclick=send_action("all")>play all<button/>');
+            //}
             draw_game(state);
             break;
          case 'choose_piles':
@@ -75,6 +75,10 @@ function process_event(ev) {
             state = data;
             draw_game(data);
             game_over('you lost :(')
+            break;
+        case 'other_actions':
+            $('div.message_holder').empty();
+            data.forEach(a => $('div.message_holder').append('<div><b style="color: #000">choose_piles:' + JSON.stringify(a)+'</b></div>'));
             break;
     }
 }
@@ -117,14 +121,14 @@ function draw_player(p) {
     var hand= p['hand'].map(draw_playable_card);
     $('div#hand > ul').html(hand.join(""));
 
-    draw_player_stats(p, $('div#player_me'));
+    draw_player_stats(p, $('#player_me'));
 }
 
 function draw_other_player(p) {
-    var bases = p['bases'].map(draw_card);
-    bases = bases.concat(p['outposts'].map(draw_card));
-    $('div#bases_other > ul').html(bases.join(""));
-    draw_player_stats(p, $('div#player_other'));
+    var bases = p['bases'].map(draw_base);
+    bases = bases.concat(p['outposts'].map(draw_base));
+    $('#bases_other > ul').html(bases.join(""));
+    draw_player_stats(p, $('#player_other'));
 }
 
 function draw_player_stats(p, ele) {
@@ -143,7 +147,7 @@ function draw_card(card) {
     } else {
         name = card['name'];
     }
-    return `<li class='card-row' name="${name}"><img src="/card/${name}" alt="${name}"></img></li>`;
+    return `<li name="${name}"><img src="/card/${name}" alt="${name}"></img></li>`;
 }
 
 function draw_base(card) {
@@ -153,7 +157,7 @@ function draw_base(card) {
     } else {
         name = card['name'];
     }
-    return `<li class='card-col'><img src="/base/${name}" alt="${name}"></img></li>`;
+    return `<li><img src="/base/${name}" alt="${name}"></img></li>`;
 }
 
 function draw_buyable_card(card) {
@@ -166,9 +170,9 @@ function draw_buyable_card(card) {
     var action = get_action("buy " + name);
 
     if(action) {
-        return `<li class='card-row buyable'><img src="/card/${name}" onclick='send_action("${action}")' alt="${name}"></img></li>`;
+        return `<li class='buyable'><img src="/card/${name}" onclick='send_action("${action}")' alt="${name}"></img></li>`;
     } else {
-        return `<li class='card-row notbuyable'><img src="/card/${name}" alt="${name}"></img></li>`;
+        return `<li class='notbuyable'><img src="/card/${name}" alt="${name}"></img></li>`;
     }
 }
 
@@ -185,9 +189,9 @@ function draw_playable_card(card) {
     var name = card['name'];
     var action = get_action("play " + name);
     if (action) {
-        return `<li class='card-row'><img src="/card/${name}" onclick='send_action("${action}")' alt="${name}"></img></li>`;
+        return `<li><img src="/card/${name}" onclick='send_action("${action}")' alt="${name}"></img></li>`;
     } else {
-        return `<li class='card-row'><img src="/card/${name}" alt="${name}"></img></li>`;
+        return `<li><img src="/card/${name}" alt="${name}"></img></li>`;
     }
 }
 
@@ -210,14 +214,14 @@ function choose_piles(data, callback) {
         console.assert(card_pile, {"pile": pile});
         if (card_pile.length >= min_select) {
             var cards = card_pile.map(draw_card).join("");
-            html.push(`<div><h3>${pile}</h3><ul class="card-list" pile="${pile}">${cards}</ul></div>`);
+            html.push(`<br><div><h3>${pile}</h3><ul class="card-row" pile="${pile}">${cards}</ul></div>`);
         }
     }
 
     const modal = $("#choose_cards");
     modal.html(html.join(""));
 
-    const selectable_cards = modal.find(".card-row");
+    const selectable_cards = modal.find("li");
     // selection/unselection logic
     for(const c of selectable_cards) {
         c.addEventListener("click", function () {

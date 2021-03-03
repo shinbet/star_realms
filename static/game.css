@@ -9,7 +9,13 @@ html, body
   grid-template-columns: 0.9fr 1.1fr 1fr 1fr;
   grid-template-rows: 0.3fr 0.9fr 1.3fr 1.4fr 1.4fr 0.6fr 0.7fr;
   gap: 1px 1px;
-  grid-template-areas: "nav nav nav nav" ". bases_other bases_other other_info" "card_draw card_draw card_draw card_draw" "bases in_play in_play player_info" "bases draw draw discard" "actions actions actions actions" "message_holder message_holder message_holder message_holder";
+  grid-template-areas: "nav nav nav nav" "other_turn bases_other bases_other other_info" "card_draw card_draw card_draw card_draw" "bases in_play in_play player_info" "bases draw draw discard" "actions actions actions actions" "message_holder message_holder message_holder message_holder";
+}
+
+.other_turn {
+    grid-area: other_turn;
+    overflow: hidden;
+    overflow-y: scroll;
 }
 
 .card_draw { grid-area: card_draw; }
@@ -38,27 +44,40 @@ html, body
 
 .actions { grid-area: actions; }
 
-.card-row {
-    height: 100%;
-    width: 10%;
-    float: left;
-}
-
 /* hacks */
 img {
     height: 100%;
     width: 100%
 }
 
-.card-col {
-    height: 100%; width: 100%; object-fit: contain;
-    float: top;
-}
-
-.card-list {
+.card-row {
     display: inline;
     list-style: none;
     overflow-x: scroll;
+}
+
+.card-row li {
+    object-fit: contain;
+    height: 100%;
+    width: 10%;
+    float: left;
+}
+
+#bases_other .card-row li {
+    width: 20%;
+}
+
+.card-col {
+    display: inline;
+    list-style: none;
+    overflow-y: scroll;
+}
+
+.card-col li {
+    object-fit: contain;
+    height: 100%;
+    width: 70%;
+    float: top;
 }
 
 .notbuyable {

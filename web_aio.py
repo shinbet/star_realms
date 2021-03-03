@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import types
 from queue import Queue
 from threading import Thread
 
@@ -9,12 +10,14 @@ import logging
 from cards import Card
 from engine import Game, UserActionPlayCard, UserActionPlayAllCards
 from pile import Pile
+from players.NN.NNSimple import NNSimplePlayer
 from players.player import Player
+from players.simple import SimplePlayer
 
 STOP_GAME = object()
 
 async def handle_index(request):
-    return web.FileResponse('static/index2.html')
+    return web.FileResponse('static/index.html')
 
 @functools.lru_cache(maxsize=None)
 def card_to_fname(card, ext):
@@ -61,11 +64,13 @@ async def wshandle(request):
 
                 p1 = WebPlayer(ws, 'p1')
                 # p2 = InteractivePlayer('p2')
-                p2 = MCSimplePlayer('p2')
+                #p2 = MCSimplePlayer('p2')
+                p2 = SimplePlayer('p2')
+                p2 = NNSimplePlayer('p2', '8 7')
 
                 game = Game([p1, p2], seed=666)
                 p1.game = game
-                p1.other = p2
+                p1.proxy_player(p2)
                 t = Thread(target=game.run)
                 await ws.send_json(['status', 'game started'])
                 t.start()
@@ -97,6 +102,7 @@ def _player_to_json(p: Player):
         'discard_pile': [_card_to_json(c) for c in p.discard_pile],
         'in_play': [_card_to_json(c) for c in p.in_play]
 }
+
 class WebPlayer(Player):
     def __init__(self, ws, *args, **kwargs):
         super(WebPlayer, self).__init__(*args, **kwargs)
@@ -107,6 +113,28 @@ class WebPlayer(Player):
         # need to be set after
         self.game = None
         self.other = None
+
+        self.other_actions = []
+
+    def proxy_player(self, p: Player):
+        self.other = p
+        orig_choose_action = p.choose_action
+        orig_do_choose_from_piles = p.do_choose_from_piles
+
+        def wrapped_choose_action(other_self, b: Game, p_other: Player, actions):
+            res = orig_choose_action(b, p_other, actions)
+            #self.send_msg('choose_action_other', str(res))
+            self.other_actions.append(('choose_action', str(res)))
+            return res
+
+        def wrapped_do_choose_from_piles(other_self, action, piles: [Pile], min_n, max_n):
+            res = orig_do_choose_from_piles(action, piles, min_n, max_n)
+            #self.send_msg('choose_piles_other', str(res))
+            self.other_actions.append(('choose_piles', str(res)))
+            return res
+
+        p.choose_action = types.MethodType(wrapped_choose_action, p)
+        p.do_choose_from_piles = types.MethodType(wrapped_do_choose_from_piles, p)
 
     def send_msg(self, event, msg):
         #app._loop.rucall_soon_threadsafe(self._ws.send_json, [event, msg])
@@ -137,16 +165,22 @@ class WebPlayer(Player):
         self.send_msg('game_state', self.get_state(b, p_other))
 
     def choose_action(self, b: Game, p_other: Player, actions):
+        self.send_other()
+
+        play_cards = [a for a in actions if isinstance(a, UserActionPlayCard)]
+        if play_cards:
+            actions.append(UserActionPlayAllCards(play_cards))
+        send_actions = {str(n): str(a) for n, a in enumerate(actions, 1)}
         self.send_state(b, p_other)
-        self.send_msg('choose_action', {str(n): str(a) for n, a in enumerate(actions, 1)})
+        self.send_msg('choose_action', send_actions)
         event, msg = self.get_msg()
         print(event, msg)
         i = msg['action']
-        if i =='all':
-            return UserActionPlayAllCards([a for a in actions if isinstance(a, UserActionPlayCard)])
         return actions[int(i)-1]
 
     def do_choose_from_piles(self, action, piles: [Pile], min_n, max_n):
+        self.send_other()
+
         self.send_state(self.game, self.other)
         self.send_msg('choose_piles', {'action':action, 'piles':[p.name for p in piles], 'min':min_n, 'max':max_n})
         event, msg = self.get_msg()
@@ -168,9 +202,15 @@ class WebPlayer(Player):
         self.send_msg('player_won', s)
 
     def lost(self, b, other):
+        self.send_other()
+
         s = self.get_state(b, other)
         self.send_msg('player_lost', s)
 
+    def send_other(self):
+        if self.other_actions:
+            self.send_msg('other_actions', self.other_actions)
+            self.other_actions = []
 
 app = web.Application()
 app.add_routes([web.get('/', handle_index),
