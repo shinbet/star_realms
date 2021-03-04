@@ -21,7 +21,7 @@ class UserActionBuyCard(UserAction):
     def __init__(self, c: Card):
         self.card = c
     def __str__(self):
-        return f'buy {self.card.name}: ${self.card.cost} {self.card}'
+        return f'buy {self.card.name}' #: ${self.card.cost} {self.card}'
     def __repr__(self):
         return f'buy {self.card.name}'
 

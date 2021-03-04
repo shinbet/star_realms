@@ -17,8 +17,8 @@ class Player(metaclass=ABCMeta):
         if draw_pile is None and discard_pile is None:
             discard_pile = DEFAULT_PLAYER_DRAW
 
-        self.draw_pile : Pile[Card] = Pile('draw', draw_pile or [])
-        self.discard_pile : Pile[Card] = Pile('discard', discard_pile or [])
+        self.draw_pile : Pile[Card] = Pile('draw_pile', draw_pile or [])
+        self.discard_pile : Pile[Card] = Pile('discard_pile', discard_pile or [])
         self.health = health
         self.name = name
         self.bases : Pile[BaseCard] = Pile('bases', bases or [])
@@ -39,8 +39,8 @@ class Player(metaclass=ABCMeta):
                     self.hand, self.in_play, self.trade, self.discard, self.on_top, self.damage, tuple(sorted(str(r) for r in self.remaining_actions))))
 
     def reset(self):
-        self.draw_pile : Pile[Card] = Pile('draw')
-        self.discard_pile : Pile[Card] = Pile('discard', DEFAULT_PLAYER_DRAW)
+        self.draw_pile : Pile[Card] = Pile('draw_pile')
+        self.discard_pile : Pile[Card] = Pile('discard_pile', DEFAULT_PLAYER_DRAW)
         self.health = 50
         self.bases : Pile[BaseCard] = Pile('bases', [])
         self.outposts : Pile[OutpostCard] = Pile('outposts', [])
@@ -125,3 +125,9 @@ class Player(metaclass=ABCMeta):
 
     def choose_card_action(self, b, p_other, actions):
         return self.choose_action(b, p_other, actions)
+
+    def won(self, b, other):
+        pass
+
+    def lost(self, b, other):
+        pass

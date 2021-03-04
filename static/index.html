@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="/static/game.css">
+
+    <title>Star Realms test</title>
+</head>
+    <body>
+        <div class="grid-container">
+          <div class="card_draw" id="trade-row"><ul class="card-row"></ul></div>
+          <div class="bases_other" id="bases_other"><ul class="card-row"></ul></div>
+          <div class="in_play" id="inplay"><ul class="card-row"></ul></div>
+          <div class="draw" id="hand"><ul class="card-row"></ul></div>
+          <div class="player_info" id="player_me"></div>
+          <div class="discard"></div>
+          <div class="other_turn" id="other_turn"></div>
+          <div class="other_info" id="player_other"></div>
+          <div class="bases" id="bases_me"><ul class="card-col"></ul></div>
+          <div class="nav">
+            <div class="col" id="nav_status">Not connected</div>
+            <div class="col"><button onclick="new_game()">new game</button></div>
+            <!--testing-->
+            <div class="col"><button onclick="test_choose_piles()">choose_piles</button></div>
+          </div>
+          <div class="actions"></div>
+          <div class="message_holder"></div>
+        </div>
+      <div id="choose_cards">test</div>
+      <div id="game_over"><h1 id="game_over_msg"></h1><button onclick="hide_and_new_game()">new game</button></div>
+      <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+      <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+      <script src="/static/game.js"></script>
+    </body>
+</html>

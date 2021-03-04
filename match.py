@@ -5,13 +5,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations
 from operator import itemgetter
-from typing import List
 
 from engine import Game
-from players.NN.NNSimple import NNSimplePlayer
-from players.NN.NNUCTPlayer import Net
-from players.player import Player
-
 
 def expected(A, B):
     """
@@ -78,11 +73,14 @@ class BaseRunner:
                 print(fmt.format(p1, *scores))
 
     def run(self, rounds=400, workers=4):
-        with multiprocessing.Pool(workers) as pool:
-            for w,l in pool.imap_unordered(worker, self.scheduler(rounds)):
-                self.results[w][l].W += 1
-                self.results[l][w].L += 1
-                print(f'{w}-{l}: {self.results[w][l]}')
+        try:
+            with multiprocessing.Pool(workers) as pool:
+                for w,l in pool.imap_unordered(worker, self.scheduler(rounds)):
+                    self.results[w][l].W += 1
+                    self.results[l][w].L += 1
+                    print(f'{w}-{l}: {self.results[w][l]}')
+        except KeyboardInterrupt:
+            print('interrupted!')
 
     def scheduler(self, rounds):
         raise NotImplemented()
@@ -136,18 +134,20 @@ def make_player(cls, *args, **kwargs):
 if __name__ == '__main__':
     from players.random_player import RandomPlayer, WEIGHT_MAP29, WEIGHT_MAP26, WEIGHT_MAP, WEIGHT_MAP_t1, WEIGHT_MAP_t2
     from players.simple import SimplePlayer
+    from players.NN.NNSimple import NNSimplePlayer
 
     t = RoundRobin([
         #make_player(RandomPlayer, 'mine', w=WEIGHT_MAP),
-        make_player(RandomPlayer, 'lr29', w=WEIGHT_MAP29),
+        #make_player(RandomPlayer, 'lr29', w=WEIGHT_MAP29),
         #make_player(RandomPlayer, 'lr26', w=WEIGHT_MAP26),
         #make_player(RandomPlayer, 't1', w=WEIGHT_MAP_t1),
         #make_player(RandomPlayer, 't2', w=WEIGHT_MAP_t2),
-        make_player(SimplePlayer, 's1'),
+        #make_player(SimplePlayer, 's1'),
         make_player(NNSimplePlayer, '3_6', "3 8"),
         make_player(NNSimplePlayer, '6_8', "6 8"),
-        make_player(NNSimplePlayer, '7_5', "7 5"),
+        #make_player(NNSimplePlayer, '7_5', "7 5"),
         make_player(NNSimplePlayer, '8_5', "8 5"),
+        make_player(NNSimplePlayer, '8_7', "8 7"),
     ])
 
     t.run()

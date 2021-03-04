@@ -6,7 +6,7 @@ from itertools import chain
 from typing import List
 
 from cards import DEFAULT_TRADE_PILE, AllyAction, \
-    Faction, OptionalAction, OutpostCard, BaseCard, EXPLORER
+    Faction, OptionalAction, OutpostCard, BaseCard, EXPLORER, FleetHQ
 from pile import Pile
 from players.player import Player
 from user_actions import *
@@ -30,8 +30,8 @@ class Game:
         if draw_pile is None:
             draw_pile = DEFAULT_TRADE_PILE.copy()
             random.shuffle(draw_pile)
-        self.trade_pile : Pile[Card] = Pile('Trade', trade_pile or [])
-        self.draw_pile : Pile[Card] = Pile('Trade Draw pile', draw_pile)
+        self.trade_pile : Pile[Card] = Pile('trade_pile', trade_pile or [])
+        self.draw_pile : Pile[Card] = Pile('draw_pile', draw_pile)
         #self.scrap_pile : Pile[Card] = Pile('scrap', [])
 
         if seed:
@@ -59,6 +59,8 @@ class Game:
         except GameOver as e:
             if self.verbose:
                 log.info(f'winner is: {e.winner.name}')
+            p1.won(self, p2)
+            p2.lost(self, p1)
             return e.winner
 
     def do_turn(self, p1: Player, p2: Player):
@@ -159,12 +161,14 @@ class Game:
             p.outposts.append(card)
         else:
             p.in_play.append(card)
-
+            # special case for FleetHQ
+            if FleetHQ in p.bases:
+                p.damage += 1
 
     def play(self, p1 : Player, p2 : Player, card: Card):
         remaining_actions = [(card, action) for action in card.actions] + p1.remaining_actions
 
-        is_allied = card.faction != Faction.UNALIGNED and any(card.is_ally(c) for c in chain(p1.hand, p1.bases, p1.outposts))
+        is_allied = card.faction != Faction.UNALIGNED and any(card.is_ally(c) for c in chain(p1.in_play, p1.bases, p1.outposts))
 
         new_remaining = []
         for c, action in remaining_actions:

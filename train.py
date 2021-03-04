@@ -22,18 +22,31 @@ import logging
 log = logging.getLogger(__file__)
 
 class LinearNet(nn.Module):
-    def __init__(self, layers):
+    def __init__(self, layers, activation, batch_norm=False, version=1, meta=None):
         super().__init__()
+        activation_f = getattr(nn, activation)
         l = nn.ModuleList()
         in_p = layers[0]
         for out_p in layers:
             l.append(nn.Linear(in_p, out_p))
-            l.append(nn.ReLU())
+            if batch_norm:
+                l.append(nn.BatchNorm1d(out_p))
+            l.append(activation_f())
             in_p = out_p
         l.append(nn.Linear(in_p, 1))
+        #if batch_norm:
+        #    l.append(nn.BatchNorm1d(out_p))
         l.append(nn.Tanh())
+
         self.layers = l
-        self.layers_conf = layers
+
+        self.net_conf = {
+            'version': version,
+            'layers': layers,
+            'activation': activation,
+            'batch_norm': batch_norm,
+        }
+        self.meta = meta if meta is not None else {}
 
     def forward(self, x):
         if type(x) == list:
@@ -42,6 +55,7 @@ class LinearNet(nn.Module):
         for l in self.layers:
             x = l(x)
         return x
+
 
 def last_model(dname):
     return max(glob.glob(os.path.join(dname, 'model_*.pt')))
@@ -54,17 +68,28 @@ def load_net(*fname):
         fname = fname[:-1] + [fname_from_id(fname[-1])]
 
     data = torch.load(os.path.join(*fname))
-    if not isinstance(data, dict) or 'layers_conf' not in data:
+    if not isinstance(data, dict) or ('layers_conf' not in data and 'net_conf' not in data):
         model = Net()
         model.load_state_dict(data)
     else:
-        model = LinearNet(data['layers_conf'])
+        if 'net_conf' not in data:
+            args = {
+                'layers': data['layers_conf'],
+                'activation': data.get('activation_conf', 'ReLU'),
+                'batch_norm': data.get('batch_norm', False),
+            }
+            meta = None
+        else:
+            args = data['net_conf']
+            meta = data['meta']
+        model = LinearNet(**args, meta=meta)
         model.load_state_dict(data['model_state'])
     return model
 
 def save_model(model, *fname):
     data = {
-        'layers_conf': model.layers_conf,
+        'net_conf': model.net_conf,
+        'meta': model.meta,
         'model_state': model.state_dict(),
     }
     torch.save(data, os.path.join(*fname))
@@ -164,15 +189,21 @@ def train(model, datafiles, conf):
     ds = GamesDataset(*datafiles, discount=conf['discount'])
     #ds = GamesDataset(*datafiles)
 
+    ds_len = len(ds)
+    train_len = int(0.7 * ds_len)
+    valid_len = ds_len - train_len
+    train, valid = torch.utils.data.random_split(ds, lengths=[train_len, valid_len])
+
     epochs = conf['epochs']
 
     # we want ~4 samples from each game
     #num_samples = len(ds) // (epochs * 200)
-    num_samples = int(len(ds) * conf['samples'])
+    num_samples = int(len(train) * conf['samples'])
 
-    sampler = torch.utils.data.RandomSampler(ds, replacement=True, num_samples=num_samples)
-    train_dl = DataLoader(ds, batch_size=conf['batch_size'], sampler=sampler)
+    sampler = torch.utils.data.RandomSampler(train, replacement=True, num_samples=num_samples)
+    train_dl = DataLoader(train, batch_size=conf['batch_size'], sampler=sampler)
 
+    model.train()
     running_loss = 0.0
     n_loss = 0
     for epoch in range(epochs):
@@ -190,6 +221,25 @@ def train(model, datafiles, conf):
         print(epoch, running_loss/n_loss)
         running_loss = 0.0
         n_loss = 0
+
+    model.meta['trainig_conf'] = conf
+    model.meta['trainig_data'] = datafiles
+
+    model.eval()
+
+    def get_loss(ds):
+        dl = DataLoader(ds, batch_size=100)
+        l = 0.0
+        for xb, yb in dl:
+            pred = model(xb)
+            yb = yb.view(-1, 1)
+            l += loss_func(pred, yb).item() * len(xb)
+        return l/len(ds)
+
+    tl = get_loss(train)
+    vl = get_loss(valid)
+    model.meta['training_eval'] = {'train_loss': tl, 'validation_loss': vl}
+    print(f'train loss:{tl} validation loss {vl}')
 
     return model
 
@@ -226,30 +276,62 @@ def train_loop(args):
     except ValueError:
         log.info('no existing model found - starting new run!')
         model_id = 0
-        model = LinearNet(conf['net']['layers'])
+        model = LinearNet(**conf['net'])
         save_model(model, dname, fname_from_id(model_id))
 
+    model.train(False)
     for i in range(args.loops):
         log.info('starting loop %s', i)
-        model.train(False)
+
         gen_training(dname, model_id, conf['games'])
 
         datafiles = [os.path.join(dname, '{:05}_'.format(m_id)) for m_id in range(model_id, -1, -1)[:3]]
         model.train(True)
         model = train(model, datafiles, conf['train'])
-
+        model.train(False)
         model_id += 1
         save_model(model, dname, fname_from_id(model_id))
 
         bench(dname, list(range(model_id, -1, -1)[:3]), conf['bench'])
 
+def do_train(args):
+    dname = args.dir
+    with open(os.path.join(dname, 'conf.json'), 'r') as f:
+        conf = json.load(f)
+
+    tconf = conf['train']
+
+    for f in ('lr', 'epochs', 'activation', 'workers'):
+        if getattr(args, f, None):
+            tconf[f] = getattr(args, f)
+
+    if args.params:
+        params = dict(p.strip().split('=') for p in args.params.split(','))
+        params = {k: float(v) if '.' in v else int(v) for k,v in params.items()}
+        tconf.update(params)
+
+    model = LinearNet(**conf['net'])
+    datafiles = args.data
+    model = train(model, datafiles, tconf)
+
+    if args.save:
+        save_model(model, dname, fname_from_id(args.save))
+
+    '''
+    "epochs": 50,
+    "lr": 0.0001,
+    "samples": 0.01,
+    "batch_size": 32,
+    "discount": 0.003,
+    "weight_decay": 0.01
+    '''
 
 def get_parser():
     from argparse import ArgumentParser
 
     parser = ArgumentParser(description='NN player training')
     parser.add_argument('dir', help='training run dir')
-
+    parser.add_argument('-w', '--workers', type=int, help='workers')
     subparsers = parser.add_subparsers(help='sub-command help')
     '''
     
@@ -261,9 +343,6 @@ def get_parser():
     gen.add_argument('-p', '--workers', type=int, default=4, help='workers')
     gen.set_defaults(func=gen_training)
 
-    train_p = subparsers.add_parser('train', help="train model on data")
-    train_p.add_argument('run', help='training run')
-    train_p.set_defaults(func=train)
 
     bench_p = subparsers.add_parser('bench', help="bench")
     bench_p.add_argument('run', help='training run')
@@ -284,6 +363,15 @@ def get_parser():
     bench_p.add_argument('-n', '--games', type=int, default=200, help='number of games to run against each')
     bench_p.add_argument('-t', '--tourney', default=False, action='store_true', help='full round robin tournament')
     bench_p.set_defaults(func=do_bench)
+
+    train_p = subparsers.add_parser('train', help="train model on data")
+    train_p.add_argument('-l', '--lr', type=float, help='override learning rate')
+    train_p.add_argument('-e', '--epochs', type=int, help='override epochs')
+    train_p.add_argument('-a', '--activation', type=str, help='activation')
+    train_p.add_argument('-s', '--save', type=int, help='save to model')
+    train_p.add_argument('-p', '--params', help='training params')
+    train_p.add_argument('data', nargs='+', help='training data')
+    train_p.set_defaults(func=do_train)
 
     return parser
 

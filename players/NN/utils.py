@@ -36,6 +36,7 @@ def discounted_v(v, n, d):
     for _ in range(n):
         d_v.append(v)
         v = v * d
+    d_v.reverse()
     return d_v
 
 

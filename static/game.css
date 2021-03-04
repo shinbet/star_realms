@@ -1,0 +1,121 @@
+html, body
+{
+    height: 100%;
+}
+
+.grid-container {
+  display: grid;
+  height: inherit;
+  grid-template-columns: 0.9fr 1.1fr 1fr 1fr;
+  grid-template-rows: 0.3fr 0.9fr 1.3fr 1.4fr 1.4fr 0.6fr 0.7fr;
+  gap: 1px 1px;
+  grid-template-areas: "nav nav nav nav" "other_turn bases_other bases_other other_info" "card_draw card_draw card_draw card_draw" "bases in_play in_play player_info" "bases draw draw discard" "actions actions actions actions" "message_holder message_holder message_holder message_holder";
+}
+
+.other_turn {
+    grid-area: other_turn;
+    overflow: hidden;
+    overflow-y: scroll;
+}
+
+.card_draw { grid-area: card_draw; }
+
+.bases_other { grid-area: bases_other; }
+
+.in_play { grid-area: in_play; }
+
+.draw { grid-area: draw; }
+
+.player_info { grid-area: player_info; }
+
+.discard { grid-area: discard; }
+
+.other_info { grid-area: other_info; }
+
+.bases { grid-area: bases; }
+
+.nav { grid-area: nav; }
+
+.message_holder {
+    grid-area: message_holder;
+    overflow: hidden;
+    overflow-y: scroll;
+}
+
+.actions { grid-area: actions; }
+
+/* hacks */
+img {
+    height: 100%;
+    width: 100%
+}
+
+.card-row {
+    display: inline;
+    list-style: none;
+    overflow-x: scroll;
+}
+
+.card-row li {
+    object-fit: contain;
+    height: 100%;
+    width: 10%;
+    float: left;
+}
+
+#bases_other .card-row li {
+    width: 20%;
+}
+
+.card-col {
+    display: inline;
+    list-style: none;
+    overflow-y: scroll;
+}
+
+.card-col li {
+    object-fit: contain;
+    height: 100%;
+    width: 70%;
+    float: top;
+}
+
+.notbuyable {
+    opacity: 0.6;
+}
+
+#choose_cards {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+
+    border: 10px solid #888;
+}
+
+.selected {
+    border-color: red;
+    border-style: solid;
+}
+
+#game_over {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+    color: red;
+    text-align: center;
+    border: 10px solid #888;
+}
